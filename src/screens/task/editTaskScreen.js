@@ -22,6 +22,7 @@ import AddSubtaskInput from "../../components/task/addSubtaskInput";
 import SubtaskProgress from "../../components/task/subtaskProgress";
 import apiClient from "../../services/api";
 import { teamService } from "../../services/index";
+import { API_URL } from "../../config/api.config";
 import Colors from "../../styles/color";
 import Folder from "../../../assets/icons/folder.svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -275,7 +276,7 @@ const EditTaskScreen = () => {
       console.log('Files count:', files.length);
       
       const response = await fetch(
-        `http://192.168.11.190:3000/api/tasks/${taskIdParam}/attachments/bulk`,
+        `${API_URL}/tasks/${taskIdParam}/attachments/bulk`,
         {
           method: 'POST',
           headers: {

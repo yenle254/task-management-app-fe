@@ -22,6 +22,7 @@ import AddSubtaskInput from "../../components/task/addSubtaskInput";
 import SubtaskProgress from "../../components/task/subtaskProgress";
 import apiClient from "../../services/api";
 import { teamService } from "../../services/index";
+import { API_URL } from "../../config/api.config";
 import Colors from "../../styles/color";
 import Confirm from "../../../assets/icons/confirm.svg";
 import Folder from "../../../assets/icons/folder.svg";
@@ -151,7 +152,7 @@ const CreateTaskScreen = ({ navigation }) => {
         console.log('Added file to FormData:', file.name);
       });
 
-      const uploadUrl = `http://192.168.11.190:3000/api/tasks/${taskId}/attachments/bulk`;
+      const uploadUrl = `${API_URL}/tasks/${taskId}/attachments/bulk`;
       console.log('Upload URL:', uploadUrl);
       
       const uploadResponse = await fetch(uploadUrl, {

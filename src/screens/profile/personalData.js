@@ -227,13 +227,24 @@ const PersonalData = () => {
 
     setSaving(true);
     try {
+      // Build update data - only include fields that have values
       const updateData = {
         fullName: formData.fullName.trim(),
-        phone: formData.phone?.trim() || null,
-        department: formData.department || null,
-        position: formData.position || null,
-        avatar: formData.avatar || null,
       };
+
+      // Only include optional fields if they have non-empty values
+      if (formData.phone?.trim()) {
+        updateData.phone = formData.phone.trim();
+      }
+      if (formData.department?.trim()) {
+        updateData.department = formData.department.trim();
+      }
+      if (formData.position?.trim()) {
+        updateData.position = formData.position.trim();
+      }
+      if (formData.avatar?.trim()) {
+        updateData.avatar = formData.avatar.trim();
+      }
 
       const response = await authService.updateProfile(updateData);
 

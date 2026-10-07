@@ -3,6 +3,7 @@ const getApiUrl = () => {
   //return "http://192.168.80.1:3000/api";
   // mthanh - wf
   //return "http://192.168.11.190:3000/api";
+  // Android Emulator - localhost của máy host
   return "http://10.0.2.2:3000/api";
   // mt - host
   //return "http://10.135.49.64:3000/api";
