@@ -118,6 +118,12 @@ const TeamScreen = ({ navigation }) => {
               style={styles.createButton}
               textStyle={styles.createButtonText}
             />
+            <AppButton
+              text="Office Locations"
+              onPress={() => navigation.navigate("OfficeList")}
+              style={styles.secondaryButton}
+              textStyle={styles.secondaryButtonText}
+            />
           </View>
         )}
       </View>
@@ -193,6 +199,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: "#E8E8E8",
+    gap: 12,
   },
   createButton: {
     width: "100%",
@@ -202,6 +209,17 @@ const styles = StyleSheet.create({
   createButtonText: {
     fontSize: 16,
     fontWeight: "600",
+  },
+  secondaryButton: {
+    width: "100%",
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: Colors.frame,
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Colors.primary,
   },
 });
 
