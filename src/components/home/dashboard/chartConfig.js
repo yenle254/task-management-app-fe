@@ -63,6 +63,15 @@ export const LEAVE_TYPE_LABELS = {
   personal: "Personal",
 };
 
+export const DISTRIBUTION_COLORS = {
+  ...STATUS_COLORS, ...LEAVE_TYPE_COLORS,
+  present: STATUS_COLORS.done, late: STATUS_COLORS.todo, absent: LEAVE_TYPE_COLORS.sick,
+};
+export const DISTRIBUTION_LABELS = {
+  ...STATUS_LABELS, ...LEAVE_TYPE_LABELS,
+  present: 'Present', late: 'Late', absent: 'Absent',
+};
+
 export const MONTH_LABELS = [
   "Jan",
   "Feb",

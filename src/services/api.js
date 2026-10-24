@@ -2,6 +2,12 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import API_CONFIG from '../config/api.config';
 
+const sessionExpiredListeners = new Set();
+export const subscribeSessionExpired = (listener) => {
+  sessionExpiredListeners.add(listener);
+  return () => sessionExpiredListeners.delete(listener);
+};
+
 const apiClient = axios.create({
   baseURL: API_CONFIG.BASE_URL,
   timeout: API_CONFIG.TIMEOUT,
@@ -49,8 +55,12 @@ apiClient.interceptors.response.use(
       const { status, data } = error.response;
       
       if (status === 401) {
-        await AsyncStorage.removeItem('authToken');
-        await AsyncStorage.removeItem('user');
+        const currentToken = await AsyncStorage.getItem('authToken');
+        // A delayed failure from an earlier account must not clear a new session.
+        if (currentToken && error.config?.headers?.Authorization === `Bearer ${currentToken}`) {
+          await Promise.all([AsyncStorage.removeItem('authToken'), AsyncStorage.removeItem('user')]);
+          sessionExpiredListeners.forEach((listener) => listener());
+        }
       }
       
       return Promise.reject(data || error.message);

@@ -1,0 +1,242 @@
+Dashboard requirement audit — updated 2026-10-24
+
+STATUS
+Dashboard source requirements have been reviewed against prompt.txt. Frontend and
+backend regression tests, actual HTTP/MongoDB integration, and browser checks of
+the real Dashboard components pass within the scope documented below. An expired
+session bug was fixed: a matching 401 now clears React authentication state as well
+as stored credentials, returning the user to sign-in. A stale earlier-session 401
+does not clear a newer account's token. Team trend requests now omit unsupported
+identity filters. Existing changes, including system-admin routing, are preserved.
+Full acceptance is NOT complete: whole-app web export, native device behavior and
+Figma comparison remain blocked/unverified. No Git commit/history operation occurred.
+
+RULES AND SCOPE
+Read project AGENTS.md and CLAUDE.md and backend ../server/AGENTS.md and
+../server/CLAUDE.md. Existing React Native/Expo, apiClient, Colors, role guards,
+service, controller and service-layer patterns were followed. Frontend protected
+API configuration, environment files, native folders, dependencies and unrelated
+modules were not changed. Backend additions are limited to Dashboard aggregates
+and their tests. Existing user changes were preserved.
+
+REQUIREMENT MATRIX
+
+Prompt 1 — inspect and reuse
+  Implemented: reviewed navigation/auth roles, services, data hooks, existing
+  dashboard/UI components, backend routes/controllers/validators/services/models,
+  filter parameters, response shapes, pagination and role authorization.
+  Implemented: reused existing chart kit, Colors, apiClient, dashboard resources,
+  shared calendar, and existing team/HR route structure; no new dependency or
+  duplicate dashboard route.
+  Verified: actual frontend services/API client through HTTP to Express/MongoDB;
+  existing database read-only checks and isolated nonzero fixtures (see evidence).
+
+Prompt 2 — visual consistency and responsive layout
+  Implemented: existing typography, colors, cards, controls, semantic chart colors,
+  labeled values/legends, touch targets, independent section loading/error/retry,
+  and responsive dashboard grid/chart/table behavior.
+  Automated: component branch tests plus headless Chromium rendering of the real
+  employee Dashboard at 390px, team lead at 768px and HR at 1280px. Actual chart-kit
+  SVG paths rendered without NaN coordinates or uncaught page errors. Screenshots
+  were captured and inspected for these layouts; table/chart horizontal scrolling
+  remains intentional. This is not every role at every viewport or a pixel audit.
+  Verified: date entry, selectors and keyboard Enter on Apply dates in the browser.
+  Unverified: native chart layout, native keyboard and screen-reader acceptance.
+  Unverified: Figma frame comparison; the supplied Figma URL was inaccessible.
+  No local Figma design files were available. Existing theme/components were used.
+
+Prompt 3 — statistics service contracts and filters
+  Implemented: task stats filters and legacy no-argument calls; attendance date
+  ranges and legacy month/year calls; supported fields are endpoint-specific and
+  blank/unknown parameters are omitted. Date pairs are validated and do not conflict
+  with month/year filters.
+  Implemented: existing named statistics endpoints and employee/team endpoints
+  were checked against server source. Added contracts are documented below.
+  Implemented: overdue count now intersects a requested task status with open task
+  statuses. A selected completed status yields zero overdue tasks; selected open
+  statuses use their corresponding subset.
+  Automated: frontend legacy/service/filter tests and backend statistics tests pass.
+  Verified: actual requests for all named statistics endpoints and team endpoints,
+  legacy attendance month/year, explicit date ranges, invalid inputs and role
+  denial. Combined team/member/priority filters were checked on nonzero fixtures.
+  Legacy service callers are covered by service compatibility tests; their separate
+  old screens were not manually navigated in a full-app runtime.
+
+Prompt 4 — employee dashboard
+  Implemented: personal in-progress, completed, overdue, recorded work hours,
+  current leave balance, event-history trend and overdue task list. Employee requests
+  remain server-scoped to the signed-in identity; there is no identity selector.
+  Verified: actual password sign-in and personal Dashboard; injected employeeId
+  cannot change the response. Fixtures yield 15.5 recorded hours and 17 remaining
+  leave days; completion events, current counts and paginated tasks are asserted.
+  Verified: expired persisted and mid-session tokens return to sign-in and remove
+  the Dashboard. Browser regression uses the actual AuthProvider and API interceptor.
+  Qualification: leave balance and its policy are provided by existing backend
+  behavior. This audit cannot establish whether stored allowances are configured
+  for every organization/account.
+
+Prompt 4 — team lead dashboard
+  Implemented: authorized team current totals/status, member progress, workload
+  ordering, paginated overdue tasks/days overdue, selected-period member progress,
+  and weekly/monthly history completion trend.
+  Implemented: new GET /api/teams/:teamId/performance-trends uses recorded status
+  history and resolveAccessibleTeam ownership checks. It accepts startDate/endDate
+  as a pair and period=week|month (default grouping is monthly; default range is
+  the most recent six calendar months). Rows contain period/label, createdTasks,
+  completedTasks, totalTasks, completionRate, onTimeTasks and onTimeRate. Buckets
+  without recorded create/complete activity are not fabricated. Historical team
+  scope relies on captured statusHistory.teamId; legacy tasks without history are
+  omitted.
+  Implemented: team on-time metrics now expose onTimeEligibleTasks and onTimeTasks.
+  The rate denominator is completions with both a completion event and due-date
+  snapshot; known empty denominators display unavailable, while measured zero remains
+  zero.
+  Implemented fallback for missing business rules: workload is ranked by open task
+  count without asserting overload, and overdue work shows elapsed days rather than
+  inventing deadline-extension counts.
+  Verified: actual own-team and HR access; other lead and employee denied on all
+  four team Dashboard endpoints. Fixtures verify shared assignments, date cohorts,
+  oldest-first pagination, moved/deleted historical events, repeated completions,
+  and on-time coverage (1 / 3 eligible completions = 33.33%).
+
+Prompt 4 — HR dashboard
+  Implemented: company overview, attendance on-time rate/distribution/trend, leave
+  counts (distinct employees on approved leave, current pending requests), task
+  statistics, performance trend, team completion ranking, current active department
+  headcount ranking, and department task activity.
+  Implemented: new HR-only GET /api/statistics/department-activity accepts optional
+  startDate/endDate pair, teamId and employeeId. It groups tasks created in the
+  selected range by the current department of active assignees and returns
+  department, totalTasks, completedTasks, openTasks and overdueTasks. Each task is
+  counted once per department; shared tasks across departments appear once in each
+  involved department. The dashboard charts/ranks by total task count and shows the
+  status counts in a table. Date filters apply to activity, not current headcount;
+  status/priority apply to task statistics only. Team/employee scope is applied on
+  the server-side task query. This is a task-activity measure, not an attendance or
+  productivity measure.
+  Implemented: endpoint is protected by existing HR authorization middleware.
+  Verified: distinct approved leave people (2 people / 3 records), task status and
+  priority intersections, current department grouping and per-department task
+  deduplication through actual MongoDB. Nonzero attendance verifies 19.5 total
+  recorded hours, present=2, late=1, calculated weekday absences, daily totals and
+  the existing present/total-records on-time denominator, including legacy calls.
+  Qualification: this validates aggregation of stored attendance statuses and the
+  existing absence policy, not GPS clock-in, office shift setup or holiday policy.
+
+Prompt 5 — filters/data semantics
+  Implemented: date presets/ranges, supported team/member filters, task status and
+  priority filters. Team changes clear employee selection; membership refresh clears
+  a no-longer-valid employee. Supported sections refresh by filter-specific keys.
+  Implemented: stale request/cache guards, in-flight deduplication, isolated errors,
+  retry, current-vs-period labels, paginated reads before aggregation, and no fake
+  production data or client-side permission filtering.
+  Implemented: no false zero for API errors, malformed/missing data or empty rate
+  denominators. Shared task assignment counts once per assignee in member workload;
+  department activity deduplicates per department.
+  Backend qualification: department classification uses current active assignee
+  profile.department, not historical department membership. Changes to employee
+  department are not historically recorded for this report.
+  Verified in browser: team changes reset the member selector; date ranges/presets
+  load real results; inverted dates show validation; a delayed current-month task
+  response cannot replace a newer last-month selection. Injecting an attendance
+  500 leaves other sections usable and retry succeeds against the real backend.
+  Empty/zero source data and nonzero isolated data were both exercised. Missing
+  fields, malformed values and unavailable denominators are covered by unit tests,
+  not claimed as naturally occurring records in the source database.
+
+Prompt 6 — implementation and verification
+  Implemented: role dashboards, service contracts, reusable components, navigation
+  integration, independent loading/empty/error/retry states, labels/units, ranking
+  criteria, accessibility labels/touch targets, and endpoint authorization checks.
+  Implemented: no PDF/Excel/email reporting feature; no commits or history changes.
+  Pass: frontend `node --test --test-reporter=spec tests/dashboard.test.cjs` —
+  37/37 (2026-10-24), including matching-session versus stale-session 401 handling.
+  Pass: backend Jest targeted suites — statistics.service, team-dashboard.service,
+  employee-dashboard.service, task-history.service, statistics.routes,
+  team-dashboard.routes, employee-dashboard.routes, dashboard.helper and
+  dashboard-indexes — 145/145 across 9 suites (2026-10-24), using the local Jest
+  entry point with `--coverage=false --runInBand --runTestsByPath`.
+  Earlier pass: backend `node --check` for changed controllers/services/routes.
+  Pass: targeted ESLint for Dashboard services/components/hooks/utilities/store and
+  verification tests — 0 errors. Three existing warnings in api.js/authContext.js
+  remain (default-import naming and an unused catch variable); they are not new
+  Dashboard lint failures. New test global-declaration warnings were corrected.
+  Pass: local TypeScript `tsc --noEmit` (2026-10-24).
+  Pass: Expo Android production export to `dist/dashboard-verified-android`, including
+  Hermes bundle and assets. This is a bundle/export check, not an APK/Gradle build
+  or device run. Executed after restoring the auth-context expiry subscription.
+  Pass: `git diff --check`.
+  Pass: real read-only source-database/API integration — 13 groups (2026-10-22).
+  Pass: isolated actual MongoDB/backend + browser integration — 13 groups
+  (2026-10-24), including the nonzero attendance/combined-filter additions.
+  Browser export was retried on 2026-10-22 and still fails (details below).
+  Backend Jest caveat: normal project config enables coverage output and global
+  coverage thresholds. The first targeted invocation passed its 63 tests but failed
+  after coverage report writing was denied and the partial targeted run fell below
+  global thresholds. Re-running the expanded targeted set with coverage disabled
+  passed all 87 tests; no coverage artifacts were written.
+
+INTEGRATION EVIDENCE AND REPRODUCTION
+  Source-database run: `node tests/dashboard-live.cjs --run`, with the local backend
+  running. Report: dist/dashboard-live/api-results.json, executedAt
+  2026-10-22T16:15:59.449Z. At that time the configured local database had users=4,
+  tasks=0, teams=0, attendance=0, leaves=4. No source data was seeded/changed.
+  JWT verification used short-lived locally signed sessions for existing users;
+  their actual password login was not tested. Source data could not verify nonzero
+  task/team/attendance cases, which were checked separately below.
+
+  Isolated run: start Metro via `node node_modules/expo/bin/cli start --port 8081
+  --localhost`, then `node tests/dashboard-integration.cjs --browser`.
+  Requires the existing sibling server dependencies, local MongoDB executable
+  (DASHBOARD_MONGOD may override its path) and installed Playwright Chromium.
+  Latest report and six screenshots:
+  dist/dashboard-integration/2026-10-24T08-29-35-364Z/results.json
+  Earlier current-source screenshots inspected:
+  dist/dashboard-integration/2026-10-24T08-25-44-435Z/
+  Each run starts a separate MongoDB process/database directory and actual backend
+  on free loopback ports. Test-only users/tasks/attendance/leave are inserted solely
+  into that isolated database; production Dashboard has no fixture/fake data.
+  Actual password login, JWT validation, middleware, controllers, services and
+  Mongo aggregations execute. Existing database writes: 0. The script closes its
+  own browser/backend/MongoDB instances and retains artifacts under ignored dist.
+
+  Browser scope: tests/dashboard-browser.entry.js loads real SignInScreen,
+  AuthProvider, HomeScreen, Dashboard components/hooks/services and chart kit.
+  Only the test API origin is adapted; protected api.config.js is unchanged.
+  Full RootNavigator and unrelated native-map screens are not imported. Socket
+  connection is disabled in this verification entry; realtime behavior is untested.
+  Real HTTP responses are used except deliberate attendance-error injection and
+  delayed-request testing. Screenshots capture selected scroll positions, not every
+  row of every table. These results do not certify whole-app web deployment.
+
+BROWSER EXPORT INVESTIGATION
+  Actual command: `node node_modules/expo/bin/cli export --platform web --output-dir
+  dist/dashboard-live-web` failed with Expo Router static-rendering "No routes found".
+  Existing app.json requests static web output and includes the Expo Router plugin,
+  while index.js registers App and navigation uses React Navigation without Router
+  route files. Separately, requesting the actual development index web bundle
+  returned HTTP 500: react-native-maps/MapMarkerNativeComponent imports native-only
+  react-native/Libraries/Utilities/codegenNativeCommands through clockInAreaScreen.
+  Both blockers are outside Dashboard code. They were left unchanged under the
+  requested scope; the Dashboard-only verification entry bundles successfully.
+
+REMAINING BLOCKERS / UNVERIFIED ACCEPTANCE
+  - Figma visual comparison remains unavailable; no claim of a pixel match.
+  - No connected native emulator/device was listed by `adb devices`. Native chart,
+    touch/keyboard, navigation and screen-reader acceptance remain unverified.
+    Browser keyboard checks do not substitute for native or screen-reader testing.
+  - Whole-app web export/deployment remains blocked by the unrelated routing/map
+    issues above. Browser component/HTTP integration is verified via the harness.
+  - Existing source accounts' password login and representative production-scale
+    data remain unverified; isolated fixtures cover multi-role/nonzero behavior.
+  - The backend has no verified deadline-change history or business overload
+    threshold. The UI uses days overdue and open-work ranking, as allowed by the
+    prompt; it does not report extension counts or label employees overloaded.
+  - Department task activity is based on current active assignee departments and
+    current task status, so it cannot reconstruct historical department ownership
+    or status at the selected creation date.
+
+No additional missing Dashboard implementation was identified within this reviewed
+scope. Every requirement group above records its implementation and verification
+level; the remaining acceptance/environment/data-history limits are not marked as
+completed. Overall completion is not claimed.

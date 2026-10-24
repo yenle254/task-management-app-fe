@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import authService from '../services/authService';
+import { subscribeSessionExpired } from '../services/api';
 import socketService from '../services/socketService';
 
 const AuthContext = createContext();
@@ -20,7 +21,13 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const unsubscribe = subscribeSessionExpired(() => {
+      socketService.disconnect();
+      setIsAuthenticated(false);
+      setUser(null);
+    });
     checkAuthState();
+    return unsubscribe;
   }, []);
 
   const checkAuthState = async () => {
