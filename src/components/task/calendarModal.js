@@ -4,6 +4,14 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View 
 import ChevronLeft from '../../../assets/icons/chevron_left.svg';
 import ChevronRight from '../../../assets/icons/chevron_right.svg';
 
+export const getDaysInMonth = (date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const count = new Date(year, month + 1, 0).getDate();
+  return [...Array(firstDay).fill(null), ...Array.from({ length: count }, (_, i) => new Date(year, month, i + 1))];
+};
+
 const CalendarModal = ({ 
   visible, 
   onClose, 
@@ -24,21 +32,7 @@ const CalendarModal = ({
     return new Date();
   });
 
-  const getDaysInMonth = (date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    const days = [];
-    for (let i = 0; i < firstDay; i++) {
-      days.push(null);
-    }
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(new Date(year, month, i));
-    }
-    return days;
-  };
 
   const isSameDay = (d1, d2) => {
     if (!d1 || !d2) return false;

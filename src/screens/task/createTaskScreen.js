@@ -20,6 +20,8 @@ import HeaderWithBackButton from "../../components/headerWithBackButton";
 import SubTaskList from "../../components/task/subtaskList";
 import AddSubtaskInput from "../../components/task/addSubtaskInput";
 import SubtaskProgress from "../../components/task/subtaskProgress";
+import AdvancedTaskFields, { emptyAdvancedFields, advancedPayload } from "../../components/task/advancedTaskFields";
+import taskService from "../../services/taskService";
 import apiClient from "../../services/api";
 import { teamService } from "../../services/index";
 import { API_URL } from "../../config/api.config";
@@ -47,6 +49,7 @@ const CreateTaskScreen = ({ navigation }) => {
   const { user, canManageTasks } = useAuth();
   const { createTask, isLoading } = useTaskStore();
 
+  const [advancedFields, setAdvancedFields] = useState(emptyAdvancedFields);
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
   const [selectedMembers, setSelectedMembers] = useState([]);
@@ -268,7 +271,7 @@ const CreateTaskScreen = ({ navigation }) => {
       }
   
     } catch (error) {
-      if (!DocumentPicker.isCancel(error)) {
+      if (error) {
         Alert.alert(
           "Error",
           "Unable to pick file(s). Please try again.",
@@ -480,6 +483,7 @@ const CreateTaskScreen = ({ navigation }) => {
     try {
       const resolvedTeamId = user?.role === 'hr_manager' ? selectedTeam?._id : user?.teamId;
       const taskPayload = {
+        ...advancedPayload(advancedFields),
         title: taskTitle.trim(),
         description: taskDescription.trim(),
         assignedTo: selectedMembers.map((m) => m._id),
@@ -487,12 +491,13 @@ const CreateTaskScreen = ({ navigation }) => {
         priority: selectedPriority?.id || "medium",
         difficulty: "medium",
         attachments: [],
-        startDate: startDate || null,
-        dueDate: dueDate || null,
+        ...(startDate ? { startDate: new Date(startDate).toISOString() } : {}),
+        ...(dueDate ? { dueDate: new Date(dueDate).toISOString() } : {}),
       };
   
       const createResponse = await createTask(taskPayload);
       const newTaskId = createResponse.data._id || createResponse._id;
+      if (advancedFields.checklistTitle.trim()) await taskService.addChecklist(newTaskId, advancedFields.checklistTitle.trim());
   
 
       if (attachments.length > 0) {
@@ -859,6 +864,7 @@ const CreateTaskScreen = ({ navigation }) => {
               Priority
             )}
 
+            <AdvancedTaskFields value={advancedFields} onChange={setAdvancedFields} creating />
             {/* Subtasks Section */}
             <View style={styles.selectorContainer}>
               <View style={styles.subtaskHeader}>

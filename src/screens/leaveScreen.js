@@ -22,6 +22,8 @@ import AppButton from "../components/appButton";
 import HeaderPromo from "../components/headerPromo";
 import IconCardText from "../components/task/iconCardText";
 import { useAuth } from "../contexts/authContext";
+import { useFocusEffect } from "@react-navigation/native";
+import LeaveWorkflowDetails, { leaveStatusLabel } from "../components/leave/leaveWorkflowDetails";
 
 const LeaveScreen = ({ navigation }) => {
   const [selectedTab, setSelectedTab] = useState("Review");
@@ -42,14 +44,12 @@ const LeaveScreen = ({ navigation }) => {
     clearError,
   } = useLeaveStore();
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useFocusEffect(React.useCallback(() => { loadData(); }, []));
 
   useEffect(() => {
     if (error) {
       Alert.alert("Error", error);
-      clearError();
+      // Keep an inline retry state until a successful refresh.
     }
   }, [error]);
 
@@ -70,7 +70,9 @@ const LeaveScreen = ({ navigation }) => {
   // Group leaves by status - use useMemo để tránh re-compute
   const groupedLeaves = useMemo(() => {
     return {
-      pending: allLeaves.filter((leave) => leave.status === "pending"),
+      pending: allLeaves.filter((leave) => ["pending", "pending_team_lead", "pending_hr"].includes(leave.status)),
+      draft: allLeaves.filter(leave => leave.status === "draft"),
+      cancelled: allLeaves.filter(leave => leave.status === "cancelled"),
       approved: allLeaves.filter((leave) => leave.status === "approved"),
       rejected: allLeaves.filter((leave) => leave.status === "rejected"),
     };
@@ -177,6 +179,7 @@ const LeaveScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.statusContainer}>
+          <Text>{leaveStatusLabel(item.status)}</Text>
           {selectedTab === "Approved" && item.approvedAt && (
             <View style={[styles.pill, styles.pillApproved]}>
               <Approved width={16} height={16} />
@@ -216,6 +219,12 @@ const LeaveScreen = ({ navigation }) => {
         break;
       case "Rejected":
         data = groupedLeaves.rejected;
+        break;
+      case "Draft":
+        data = groupedLeaves.draft;
+        break;
+      case "Cancelled":
+        data = groupedLeaves.cancelled;
         break;
       default:
         data = [];
@@ -300,7 +309,9 @@ const LeaveScreen = ({ navigation }) => {
         </View>
       </View>
 
-      <View style={styles.tabsContainer}>
+      {["team_lead", "hr_manager"].includes(user?.role) && <TouchableOpacity accessibilityRole="button" onPress={() => navigation.navigate("LeaveInbox")} style={{padding:16}}><Text>Review team leave requests</Text></TouchableOpacity>}
+      <View style={[styles.tabsContainer, { flexWrap: "wrap" }]}>
+        {["Draft", "Cancelled"].map(tab => <TouchableOpacity key={tab} style={[styles.tab, selectedTab === tab && styles.activeTab]} onPress={() => setSelectedTab(tab)}><Text style={[styles.tabText, selectedTab === tab && styles.activeTabText]}>{tab}</Text></TouchableOpacity>)}
         <TouchableOpacity
           style={[styles.tab, selectedTab === "Review" && styles.activeTab]}
           onPress={() => setSelectedTab("Review")}
@@ -378,6 +389,7 @@ const LeaveScreen = ({ navigation }) => {
           />
         }
       >
+        {error ? <TouchableOpacity accessibilityRole="button" onPress={loadData}><Text>{error} · Retry</Text></TouchableOpacity> : null}
         {renderTabContent()}
       </ScrollView>
 
@@ -400,7 +412,7 @@ const LeaveScreen = ({ navigation }) => {
         }}
       >
         <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
+          <ScrollView style={[styles.modalContent, { maxHeight: "85%", maxWidth: 640 }]} contentContainerStyle={{ paddingBottom: 20 }}>
             {selectedLeave && (
               <>
                 <Text style={styles.modalTitle}>Leave Details</Text>
@@ -469,7 +481,7 @@ const LeaveScreen = ({ navigation }) => {
                   )}
 
                 
-                {selectedLeave.status === "pending" && (
+                {["pending", "pending_team_lead", "pending_hr"].includes(selectedLeave.status) && (
                   <>
                     <View style={styles.statusRow}>
                       <Text style={[styles.statusValue, {color:"#ffaa00ff"}]}>
@@ -482,6 +494,8 @@ const LeaveScreen = ({ navigation }) => {
                   </>
                 )}
 
+                <LeaveWorkflowDetails leave={selectedLeave} user={user} navigation={navigation}
+                  onChanged={loadData} onClose={() => { setModalVisible(false); setSelectedLeave(null); }} />
                 <AppButton
                   text="Close"
                   onPress={() => {
@@ -493,7 +507,7 @@ const LeaveScreen = ({ navigation }) => {
                 />
               </>
             )}
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </View>
@@ -620,6 +634,8 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
+    minWidth: 110,
+    minHeight: 44,
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 20,
@@ -642,9 +658,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   badge: {
-    position: "absolute",
-    top: 5,
-    right: 10,
+    marginLeft: 8,
     backgroundColor: "#FF3B30",
     borderRadius: 10,
     minWidth: 20,

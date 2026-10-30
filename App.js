@@ -1,18 +1,15 @@
 import React from "react";
-import { StyleSheet } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider } from "./src/contexts/authContext";
 import RootNavigator from "./src/navigations/rootNavigator";
-import StackNavigator from "./src/navigations/stackNavigator";
 
 
 const App = () => {
   return (
-    <AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}><AuthProvider>
         <RootNavigator />
-    </AuthProvider>
+    </AuthProvider></GestureHandlerRootView>
   );
 };
 
 export default App;
-
-const styles = StyleSheet.create({});

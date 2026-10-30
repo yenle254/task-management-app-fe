@@ -1,452 +1,97 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import NoTask from "../../../assets/icons/notask.svg";
 import PlusIcon from "../../../assets/icons/plus.svg";
-import SearchIcon from "../../../assets/icons/search.svg";
-import { useTaskStore } from "../../../store/index";
+import useTaskStore from "../../../store/taskStore";
 import HeaderPromo from "../../components/headerPromo";
 import CardTask from "../../components/task/cardTask";
-import IconCardText from "../../components/task/iconCardText";
 import TaskStatusCard from "../../components/task/taskStatusCard";
+import TaskFilterBar from "../../components/task/taskFilterBar";
 import { useAuth } from "../../contexts/authContext";
 import Colors from "../../styles/color";
-import { CategoryMap } from "../../utils/categoryMapping";
 
+const tabStatuses = { All: null, Todo: 'todo', InProgress: 'in_progress', Finished: 'done' };
 const TaskScreen = () => {
   const navigation = useNavigation();
-  
   const { user, canManageTasks, isLoading: authLoading } = useAuth();
-
-  const {
-    tasks,
-    myTasks,
-    taskStats,
-    isLoading,
-    fetchTasks,
-    fetchMyTasks,
-    fetchTaskStats,
-    getFilteredTasks,
-    setFilters,
-    filters
-  } = useTaskStore();
-
-  const Todo = CategoryMap["todo"];
-  const Inprogress = CategoryMap["inprogress"];
-  const Done = CategoryMap["done"];
-
-  const [selectedTab, setSelectedTab] = useState("All");
-  const [selectedView, setSelectedView] = useState("my");
-  const [searchQuery, setSearchQuery] = useState("");
+  const { tasks, myTasks, taskStats, listLoading: isLoading, error, fetchTaskPage, fetchTaskStats, setFilters,
+    resetFilters, filters, page, total, hasMore } = useTaskStore();
+  const [selectedTab, setSelectedTab] = useState('All');
+  const [selectedView, setSelectedView] = useState('my');
+  const [searchQuery, setSearchQuery] = useState(filters.search);
   const [refreshing, setRefreshing] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      if (!authLoading && user) loadInitialData();
-    }, [authLoading, user])
-  );
-
+  const loadingMore = useRef(false);
+  const canViewAllTasks = user?.role === 'hr_manager' || user?.role === 'team_lead';
+  const scope = canViewAllTasks ? selectedView : 'my';
+  const status = tabStatuses[selectedTab];
   useEffect(() => {
-    if (user) {
-      setFilters({ search: searchQuery });
-    }
-  }, [searchQuery, user]);
-
-  const loadInitialData = async () => {
-    try {
-      await fetchMyTasks();
-      if (user?.role === "hr_manager" || user?.role === "team_lead") {
-        await fetchTasks();
-      }
-      await fetchTaskStats();
-    } catch (error) {
-      console.error("Failed to load tasks:", error);
-    }
+    const timer = setTimeout(() => setFilters({ search: searchQuery }), 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery, setFilters]);
+  const load = useCallback(async () => {
+    if (!user || authLoading) return;
+    try { await fetchTaskPage(scope, { ...filters, page: 1, status }); }
+    catch { /* Store supplies the visible retry state. */ }
+  }, [user, authLoading, fetchTaskPage, scope, status, filters]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    if (user && !authLoading) fetchTaskStats().catch(() => {});
+  }, [user, authLoading, fetchTaskStats]));
+  const refresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
+  const loadMore = async () => {
+    if (!hasMore || isLoading || loadingMore.current) return;
+    loadingMore.current = true;
+    try { await fetchTaskPage(scope, { page: page + 1, status }); }
+    catch { /* Store supplies error message. */ }
+    finally { loadingMore.current = false; }
   };
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadInitialData();
-    setRefreshing(false);
-  };
-
-  const getCurrentTasks = () => {
-    if (selectedView === "my") {
-      return myTasks || [];
-    }
-
-    if (user?.role === "hr_manager" || user?.role === "team_lead") {
-      return getFilteredTasks();
-    }
-
-    return myTasks || [];
-  };
-
-
-  const groupTasksByStatus = (taskList) => {
-    return {
-      todo: taskList.filter(t => t.status === "todo"),
-      in_progress: taskList.filter(t => t.status === "in_progress"),
-      done: taskList.filter(t => t.status === "done")
-    };
-  };
-
-  const currentTasks = getCurrentTasks();
-  const groupedTasks = groupTasksByStatus(currentTasks);
-
-
-  const todoCount = groupedTasks.todo.length;
-  const inProgressCount = groupedTasks.in_progress.length;
-  const doneCount = groupedTasks.done.length;
-
-
-  const taskData = {
-    all: currentTasks,
-    inProgress: groupedTasks.in_progress,
-    finish: groupedTasks.done,
-    todo: groupedTasks.todo
-  };
-
-
-  const formatTaskForCard = (task) => {
-    return {
-      id: task._id,
-      name: task.title,
-      description: task.description || "",
-      endDate: task.dueDate 
-        ? new Date(task.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) 
-        : "No date",
-      comment: task.comments?.length || 0,
-      progress: task.progress || 0,
-      category: task.status,
-      flag: task.priority || "medium",
-      assignees: task.assignedTo || [],
-    };
-  };
-
-  const renderTabContent = () => {
-    let data = [];
-    switch (selectedTab) {
-      case "All":
-        data = taskData.all;
-        break;
-      case "Todo":
-        data = taskData.todo;
-        break;
-      case "InProgress":
-        data = taskData.inProgress;
-        break;
-      case "Finished":
-        data = taskData.finish;
-        break;
-      default:
-        data = [];
-    }
-
-    if (isLoading && data.length === 0) {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading tasks...</Text>
+  const data = scope === 'my' ? myTasks : tasks;
+  if (authLoading || !user) return <View style={styles.fullScreenLoading}><ActivityIndicator color={Colors.primary} /></View>;
+  const openView = name => navigation.navigate(name, name === 'KanbanBoard' ? { teamId: user.teamId?._id || user.teamId } : { scope: 'self' });
+  return <View style={{ flex: 1, backgroundColor: Colors.secondary }}>
+    <HeaderPromo text="Challenges ahead!" subtext="Plan your work, one task at a time." color={Colors.primary} />
+    <FlatList
+      data={data} keyExtractor={item => item._id}
+      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
+      onEndReached={loadMore} onEndReachedThreshold={0.3}
+      ListHeaderComponent={<View>
+        <View style={{ backgroundColor: Colors.white, padding: 16, borderRadius: 16 }}>
+          <Text style={styles.headerText}>Your tasks</Text>
+          <TextInput style={styles.searchInput} value={searchQuery} onChangeText={setSearchQuery} placeholder="Search title, description or tags" />
+          {canViewAllTasks && <View style={styles.viewToggle}>{['my', 'all'].map(value =>
+            <TouchableOpacity key={value} style={[styles.viewButton, scope === value && styles.activeViewButton]} onPress={() => setSelectedView(value)}>
+              <Text style={scope === value ? styles.activeViewButtonText : styles.viewButtonText}>{value === 'my' ? 'My Tasks' : user.role === 'hr_manager' ? 'All Tasks' : 'Team Tasks'}</Text>
+            </TouchableOpacity>)}</View>}
         </View>
-      );
-    }
-
-    if (data.length === 0) {
-      return (
-        <View style={styles.noTaskContainer}>
-          <View style={styles.noTask}>
-            <NoTask width={126} height={86} />
-            <Text style={{ fontSize: 19, fontWeight: "bold" }}>
-              No Task Assigned
-            </Text>
-            <Text
-              style={{
-                textAlign: "center",
-                fontSize: 14,
-                color: "#555555ff",
-              }}
-            >
-              It looks like you don&apos;t have any task right now. This place will be
-              updated as new task are added!!!
-            </Text>
-          </View>
+        {scope === 'my' && <TaskStatusCard todoCount={taskStats?.todo || 0} inProgressCount={taskStats?.in_progress || 0} doneCount={taskStats?.done || 0} />}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 16 }}>
+          <Text style={{ color: Colors.primary }}>List</Text>
+          {canManageTasks() && <TouchableOpacity onPress={() => openView('KanbanBoard')}><Text>Board</Text></TouchableOpacity>}
+          <TouchableOpacity onPress={() => openView('TaskCalendar')}><Text>Calendar</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => openView('TaskTimeline')}><Text>Timeline</Text></TouchableOpacity>
         </View>
-      );
-    }
-
-    return (
-      <View style={styles.contentContainer}>
-        {data.map((task) => {
-          const formattedTask = formatTaskForCard(task);
-          return (
-            <TouchableOpacity
-              key={formattedTask.id}
-              onPress={() => navigation.navigate("TaskDetail", { taskId: formattedTask.id })}
-            >
-              <CardTask 
-                name={formattedTask.name}
-                description={formattedTask.description}
-                endDate={formattedTask.endDate}
-                comment={formattedTask.comment}
-                progress={formattedTask.progress}
-                category={formattedTask.category}
-                flag={formattedTask.flag}
-                bgColor={Colors.white}
-                assignees={formattedTask.assignees}
-              />
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    );
-  };
-
-  const canViewAllTasks = user?.role === "hr_manager" || user?.role === "team_lead";
-  if (authLoading || !user) {
-    return (
-      <View style={styles.fullScreenLoading}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={{ flex: 1, backgroundColor: Colors.secondary }}>
-      <HeaderPromo
-        text="Challenges ahead!"
-        subtext="Don't worry, they're not multiplying.. yet."
-        color={Colors.primary}
-      />
-      
-      {/* Summary Card */}
-      <View style={styles.summary}>
-        <View style={styles.header}>
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.headerText}>Summary of your work</Text>
-              <Text style={styles.headerSubtext}>
-                {selectedView === "my" 
-                  ? "Your assigned tasks"
-                  : user?.role === "hr_manager" 
-                    ? "All company tasks"
-                    : "Your team's tasks"}
-              </Text>
-            </View>
-            <TouchableOpacity 
-              onPress={() => setShowSearch(!showSearch)}
-              style={styles.searchButton}
-            >
-              <SearchIcon width={20} height={20} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Search Bar */}
-          {showSearch && (
-            <View style={styles.searchContainer}>
-              <SearchIcon width={16} height={16} style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search tasks..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholderTextColor="#999"
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery("")}>
-                  <Text style={styles.clearButton}>✕</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
-
-
-          {canViewAllTasks && (
-            <View style={styles.viewToggle}>
-              <TouchableOpacity
-                style={[styles.viewButton, selectedView === "all" && styles.activeViewButton]}
-                onPress={() => setSelectedView("all")}
-              >
-                <Text style={[styles.viewButtonText, selectedView === "all" && styles.activeViewButtonText]}>
-                  {user?.role === "hr_manager" ? "All Tasks" : "Team Tasks"}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.viewButton, selectedView === "my" && styles.activeViewButton]}
-                onPress={() => setSelectedView("my")}
-              >
-                <Text style={[styles.viewButtonText, selectedView === "my" && styles.activeViewButtonText]}>
-                  My Tasks
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.body}>
-          <IconCardText
-            icon={<Todo width={16} height={16} />}
-            text="To do"
-            subtext={todoCount}
-            subtextStyle={{
-              fontSize: 16,
-              fontWeight: "600",
-              color: "#000000",
-            }}
-            textStyle={{
-              fontSize: 12,
-            }}
-          />
-          <IconCardText
-            icon={<Inprogress width={16} height={16} />}
-            text="Ongoing"
-            subtext={inProgressCount}
-            subtextStyle={{
-              fontSize: 16,
-              fontWeight: "600",
-              color: "#000000",
-            }}
-            textStyle={{
-              fontSize: 12,
-            }}
-          />
-          <IconCardText
-            icon={<Done width={16} height={16} />}
-            text="Done"
-            subtext={doneCount}
-            subtextStyle={{
-              fontSize: 16,
-              fontWeight: "600",
-              color: "#000000",
-            }}
-            textStyle={{
-              fontSize: 12,
-            }}
-          />
-        </View>
-      </View>
-
-      <ScrollView
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={Colors.primary}
-          />
-        }
-      >
-        {selectedView === "my" && (
-          <TaskStatusCard
-            todoCount={todoCount}
-            inProgressCount={inProgressCount}
-            doneCount={doneCount}
-          />
-        )}
-
-        {/* Tabs */}
-        <View style={styles.tabsContainer}>
-          <TouchableOpacity
-            style={[styles.tab, selectedTab === "All" && styles.activeTab]}
-            onPress={() => setSelectedTab("All")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                selectedTab === "All" && styles.activeTabText,
-              ]}
-            >
-              All
-            </Text>
-            {taskData.all.length > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{taskData.all.length}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tab, selectedTab === "Todo" && styles.activeTab]}
-            onPress={() => setSelectedTab("Todo")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                selectedTab === "Todo" && styles.activeTabText,
-              ]}
-            >
-              To do
-            </Text>
-            {taskData.todo.length > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{taskData.todo.length}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tab, selectedTab === "InProgress" && styles.activeTab]}
-            onPress={() => setSelectedTab("InProgress")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                selectedTab === "InProgress" && styles.activeTabText,
-              ]}
-            >
-              Ongoing
-            </Text>
-            {taskData.inProgress.length > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{taskData.inProgress.length}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tab, selectedTab === "Finished" && styles.activeTab]}
-            onPress={() => setSelectedTab("Finished")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                selectedTab === "Finished" && styles.activeTabText,
-              ]}
-            >
-              Finished
-            </Text>
-            {taskData.finish.length > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{taskData.finish.length}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        <View
-          style={styles.scrollViewContent}
-          contentContainerStyle={styles.scrollViewContainer}
-          showsVerticalScrollIndicator={false}
-        >
-          {renderTabContent()}
-        </View>
-      </ScrollView>
-
-
-      {canManageTasks && canManageTasks() && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => navigation.navigate("CreateTask")}
-        >
-          <PlusIcon width={24} height={24} fill="#FFFFFF" />
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+        <TaskFilterBar filters={filters} onChange={setFilters} onReset={() => { resetFilters(); setSearchQuery(''); }} />
+        <View style={styles.tabsContainer}>{Object.keys(tabStatuses).map(tab => <TouchableOpacity key={tab}
+          onPress={() => setSelectedTab(tab)} style={[styles.tab, selectedTab === tab && styles.activeTab]}>
+          <Text style={[styles.tabText, selectedTab === tab && styles.activeTabText]}>{tab === 'InProgress' ? 'Ongoing' : tab}</Text>
+        </TouchableOpacity>)}</View>
+        <Text style={{ marginBottom: 12 }}>{total} matching tasks</Text>
+        {error && <TouchableOpacity onPress={load}><Text style={{ color: '#b42318' }}>{error} · Retry</Text></TouchableOpacity>}
+      </View>}
+      renderItem={({ item }) => <TouchableOpacity onPress={() => navigation.navigate('TaskDetail', { taskId: item._id })} style={{ marginBottom: 12 }}>
+        <CardTask name={item.title} description={item.description || ''} endDate={item.dueDate ? new Date(item.dueDate).toLocaleDateString() : 'No date'}
+          comment={item.comments?.length || 0} progress={item.progress || 0} category={item.status} flag={item.priority}
+          bgColor={Colors.white} assignees={item.assignedTo || []} />
+      </TouchableOpacity>}
+      ListEmptyComponent={isLoading ? <ActivityIndicator color={Colors.primary} /> :
+        <View style={styles.noTask}><NoTask width={126} height={86} /><Text>No tasks match these filters.</Text></View>}
+      ListFooterComponent={isLoading && data.length > 0 ? <ActivityIndicator color={Colors.primary} /> : null}
+    />
+    {canManageTasks() && <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('CreateTask')}><PlusIcon width={24} height={24} fill="#fff" /></TouchableOpacity>}
+  </View>;
 };
-
 export default TaskScreen;
 
 const styles = StyleSheet.create({
