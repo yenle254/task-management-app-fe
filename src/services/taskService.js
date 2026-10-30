@@ -1,6 +1,110 @@
 import apiClient from './api';
 
 const taskService = {
+  setParentTask: async (id, parentTaskId) => {
+    try { return await apiClient.post(`/tasks/${id}/parent`, { parentTaskId }); }
+    catch (error) { throw error; }
+  },
+  removeParentTask: async (id) => {
+    try { return await apiClient.delete(`/tasks/${id}/parent`); }
+    catch (error) { throw error; }
+  },
+  getTaskChildren: async (id) => {
+    try { return await apiClient.get(`/tasks/${id}/children`); }
+    catch (error) { throw error; }
+  },
+  addChecklist: async (id, title) => {
+    try { return await apiClient.post(`/tasks/${id}/checklists`, { title }); }
+    catch (error) { throw error; }
+  },
+  updateChecklist: async (id, checklistId, title) => {
+    try { return await apiClient.patch(`/tasks/${id}/checklists/${checklistId}`, { title }); }
+    catch (error) { throw error; }
+  },
+  deleteChecklist: async (id, checklistId) => {
+    try { return await apiClient.delete(`/tasks/${id}/checklists/${checklistId}`); }
+    catch (error) { throw error; }
+  },
+  addChecklistItem: async (id, checklistId, text) => {
+    try { return await apiClient.post(`/tasks/${id}/checklists/${checklistId}/items`, { text }); }
+    catch (error) { throw error; }
+  },
+  updateChecklistItem: async (id, checklistId, itemId, data) => {
+    try { return await apiClient.patch(`/tasks/${id}/checklists/${checklistId}/items/${itemId}`, data); }
+    catch (error) { throw error; }
+  },
+  deleteChecklistItem: async (id, checklistId, itemId) => {
+    try { return await apiClient.delete(`/tasks/${id}/checklists/${checklistId}/items/${itemId}`); }
+    catch (error) { throw error; }
+  },
+  addDependencies: async (id, dependencyIds) => {
+    try { return await apiClient.post(`/tasks/${id}/dependencies`, { dependencyIds }); }
+    catch (error) { throw error; }
+  },
+  removeDependency: async (id, dependencyId) => {
+    try { return await apiClient.delete(`/tasks/${id}/dependencies/${dependencyId}`); }
+    catch (error) { throw error; }
+  },
+  getDependencies: async (id) => {
+    try { return await apiClient.get(`/tasks/${id}/dependencies`); }
+    catch (error) { throw error; }
+  },
+  addWatcher: async (id, userId) => {
+    try { return await apiClient.post(`/tasks/${id}/watchers`, { userId }); }
+    catch (error) { throw error; }
+  },
+  removeWatcher: async (id, userId) => {
+    try { return await apiClient.delete(`/tasks/${id}/watchers/${userId}`); }
+    catch (error) { throw error; }
+  },
+  getWatchers: async (id) => {
+    try { return await apiClient.get(`/tasks/${id}/watchers`); }
+    catch (error) { throw error; }
+  },
+  getWatchingTasks: async () => {
+    try { return await apiClient.get('/tasks/watching/me'); }
+    catch (error) { throw error; }
+  },
+  setTags: async (id, tags) => {
+    try { return await apiClient.post(`/tasks/${id}/tags`, { tags }); }
+    catch (error) { throw error; }
+  },
+  updateEstimate: async (id, data) => {
+    try { return await apiClient.put(`/tasks/${id}/estimate`, data); }
+    catch (error) { throw error; }
+  },
+  addTimeEntry: async (id, data) => {
+    try { return await apiClient.post(`/tasks/${id}/time-entries`, data); }
+    catch (error) { throw error; }
+  },
+  getTimeEntries: async (id) => {
+    try { return await apiClient.get(`/tasks/${id}/time-entries`); }
+    catch (error) { throw error; }
+  },
+  deleteTimeEntry: async (id, entryId) => {
+    try { return await apiClient.delete(`/tasks/${id}/time-entries/${entryId}`); }
+    catch (error) { throw error; }
+  },
+  deleteAttachment: async (id, attachmentId) => {
+    try { return await apiClient.delete(`/tasks/${id}/attachments/${attachmentId}`); }
+    catch (error) { throw error; }
+  },
+  getTaskHistory: async (id) => {
+    try { return await apiClient.get(`/tasks/${id}/history`); }
+    catch (error) { throw error; }
+  },
+  getBoard: async (params = {}) => {
+    try { return await apiClient.get('/tasks/board', { params }); }
+    catch (error) { throw error; }
+  },
+  getCalendar: async (params = {}) => {
+    try { return await apiClient.get('/tasks/calendar', { params }); }
+    catch (error) { throw error; }
+  },
+  getTimeline: async (params = {}) => {
+    try { return await apiClient.get('/tasks/timeline', { params }); }
+    catch (error) { throw error; }
+  },
   /**
    * Create a new task
    * @param {Object} taskData - {title, description, teamId, assignedTo, priority, dueDate, startDate, tags}

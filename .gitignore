@@ -38,7 +38,20 @@ yarn-error.*
 
 app-example
 
+prompt.txt
+
 # generated native folders
 /ios
 /android
 src\config\api.config.js
+
+# Claude Code memory and reports
+MEMORY.md
+*.memory.md
+*.report.md
+BAO_CAO_*.md
+REPORT_*.md
+*.md
+!CLAUDE.md
+!README.md
+!CHANGELOG.md

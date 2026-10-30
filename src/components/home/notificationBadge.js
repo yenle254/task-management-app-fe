@@ -8,19 +8,16 @@ const NotificationBadge = () => {
   const unreadCount = useNotificationStore(state => state.unreadCount);
   const fetchUnreadCount = useNotificationStore(state => state.fetchUnreadCount);
 
+  // Fetch once on mount
   useEffect(() => {
     fetchUnreadCount();
   }, []);
 
+  // Refresh on focus (but don't poll inside here - use store's auto-refresh instead)
   useFocusEffect(
     React.useCallback(() => {
       fetchUnreadCount();
-      
-      const interval = setInterval(() => {
-        fetchUnreadCount();
-      }, 3000);
-      
-      return () => clearInterval(interval);
+      return () => {};
     }, [fetchUnreadCount])
   );
 

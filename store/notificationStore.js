@@ -7,10 +7,14 @@ const useNotificationStore = create((set, get) => ({
   unreadCount: 0,
   isLoading: false,
   error: null,
-  
+
+  // Request deduplication
+  isFetchingUnread: false,
+  unreadCooldownUntil: null, // Timestamp when cooldown ends
+
   // Auto-refresh interval ID
   refreshInterval: null,
-  
+
   // Pagination
   pagination: {
     page: 1,
@@ -58,23 +62,64 @@ const useNotificationStore = create((set, get) => ({
   },
 
   /**
-   * Fetch unread notification count
+   * Fetch unread notification count with deduplication and 429 handling
    * Backend response: { success: true, data: { unreadCount: number } }
    */
   fetchUnreadCount: async () => {
+    const { isFetchingUnread, unreadCooldownUntil } = get();
+    const now = Date.now();
+
+    // Skip if already fetching
+    if (isFetchingUnread) {
+      return;
+    }
+
+    // Skip if in cooldown from 429
+    if (unreadCooldownUntil && now < unreadCooldownUntil) {
+      return;
+    }
+
+    set({ isFetchingUnread: true });
+
     try {
       const response = await notificationService.getUnreadCount();
-      
+
       // Backend trả về: response.data.unreadCount
       const count = response.data?.unreadCount || 0;
-      
-      set({ unreadCount: count });
-      
+
+      set({
+        unreadCount: count,
+        isFetchingUnread: false,
+        unreadCooldownUntil: null
+      });
+
       return response;
     } catch (error) {
-      console.error('Failed to fetch unread count:', error);
-      // Không throw error để không break UI
-      set({ unreadCount: 0 });
+      // Check if it's a 429 error
+      if (error?.error?.includes('Too many requests') ||
+          error?.retryAfter ||
+          (error?.response?.status === 429)) {
+
+        // Parse retryAfter - could be in seconds or from headers
+        const retrySeconds = error?.retryAfter || 900; // Default 15 minutes
+        const cooldownMs = retrySeconds * 1000;
+
+        console.log(`Rate limited. Cooldown for ${retrySeconds}s`);
+
+        set({
+          isFetchingUnread: false,
+          unreadCooldownUntil: now + cooldownMs
+        });
+      } else {
+        set({
+          isFetchingUnread: false,
+          unreadCooldownUntil: null
+        });
+        console.error('Failed to fetch unread count:', error);
+      }
+
+      // Don't throw - don't break UI
+      return;
     }
   },
 
@@ -233,21 +278,20 @@ const useNotificationStore = create((set, get) => ({
 
   /**
    * Start auto-refresh (every 30 seconds)
+   * Call this ONCE per app session (e.g., in App.js or root navigator)
    */
   startAutoRefresh: () => {
-    const existingInterval = get().refreshInterval;
-    if (existingInterval) {
-      clearInterval(existingInterval);
-    }
-    
+    // Stop existing interval if any
+    get().stopAutoRefresh();
+
     // Fetch immediately
     get().fetchUnreadCount();
-    
-    // Set up new interval
+
+    // Set up new interval (30 seconds)
     const intervalId = setInterval(() => {
       get().fetchUnreadCount();
     }, 30000);
-    
+
     set({ refreshInterval: intervalId });
   },
 

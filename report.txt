@@ -1,0 +1,201 @@
+Dashboard recovery and implementation report
+LATEST REQUIREMENT AUDIT - 2026-10-22
+See dashboard-audit.txt for the complete prompt-by-prompt assessment.
+Full end-to-end compliance is NOT certified: backend metrics and live/browser/device
+acceptance gaps remain. Feasible frontend fixes are implemented: malformed-data
+guards, semantic legends/details, calendar draft/raw-date/back handling, safe error
+text, cache invalidation on failed refresh, overdue pagination recovery, explicit
+department headcount ranking, and unavailable rates for known empty denominators.
+Latest checks: 36 tests pass; targeted lint and TypeScript pass; Android production
+export passes. Whole-src lint retains 25 existing errors/111 warnings. Latest web
+export fails on existing Expo Router static configuration (No routes found); the
+earlier native-map issue also remains. No backend/API configuration/history/commit
+changes were made. Detailed backend contracts and remaining limits are in the audit.
+
+INITIAL RECOVERY RECORD (historical results below; latest audit above supersedes
+its test counts and the earlier absence of an explicit department headcount ranking)
+Date: 2026-10-22
+Workspace: G:\uni\Do_an_tot_nghiep\project
+
+RECOVERED STATE
+Read prompt.txt, AGENTS.md, CLAUDE.md and the supplied Claude session JSONL.
+Claude stopped after deleting incomplete employee/team dashboard components.
+HomeScreen retained their imports and also contained malformed RefreshControl JSX.
+The statistics service had partial filter support without date validation.
+Existing admin/auth/notification work was preserved. The admin screen needed a
+small import/icon repair because its existing errors blocked the entire bundle.
+No backend, API configuration, environment files or native folders were changed.
+No dependencies were added; no commits, resets or destructive Git operations ran.
+
+IMPLEMENTED
+- Home renders employee, team_lead or hr_manager dashboards using actual role names.
+  system_admin remains on the existing separate admin navigation stack.
+- Employee: personal in-progress/completed/overdue counts, recorded work hours,
+  current-year leave balance, status distribution, completion trend and time bars,
+  and current overdue tasks with elapsed days overdue.
+- Team lead: authorized assigned-team totals, status distribution, completion and
+  on-time rates, workload ranking by open tasks, date-filtered member progress,
+  and a paginated overdue list ordered by oldest deadline.
+- HR: company overview, attendance, distinct approved employees on leave,
+  current pending requests, leave type/month charts, filtered task statistics,
+  performance trends, team rankings and explicitly labelled department headcount.
+- Shared date inputs and existing CalendarModal, this week/month/last month presets,
+  weekly/monthly trend grouping, HR team/member/status/priority filters.
+  Changing team clears employee selection immediately; refreshed membership also
+  clears a selected employee who is no longer in the returned team membership.
+- Shared cards, charts and tables; existing Colors, chartConfig, chart library and
+  WelcomeCard reused. Narrow layouts stack panels; wide layouts use two columns.
+  Tables/charts scroll horizontally. Exact values, units, legends and line-chart
+  point details accompany charts. Buttons and loading/error states have basic
+  accessibility labels/roles. UI follows the app's existing English labels.
+- Independent section skeletons/errors/retry, five-minute per-section Zustand
+  caching, in-flight deduplication, refresh integration and stale-response guards.
+  Dashboard instances remount on account, role or assigned-team changes; their
+  caches are not shared across accounts. Home no longer duplicates dashboard loads.
+- Missing values render as unavailable, while valid zero values remain zero.
+  Aggregates never use an incomplete page. No production mock data or exports.
+
+API CONTRACTS VERIFIED FROM THE SIBLING SERVER SOURCE (all GET, /api prefix)
+Routes, controllers, services, constants, auth middleware/models and history
+aggregation were inspected. The response envelope is { success, data }; Axios
+already unwraps the HTTP response body. These are repository contract checks,
+not authenticated live-server acceptance tests.
+
+Employee only:
+  /employees/dashboard: startDate, endDate, period=week|month.
+    Returns tasks, workHours, leaveBalance, performanceTrend and period.
+    Identity is taken from authentication; no identity selector is exposed/sent.
+  /employees/tasks: startDate/endDate filter createdAt; page, limit supported.
+    All pages are fetched before counting status totals. Pagination is
+    { page, pages, total, data }. A failed/changing/incomplete result is not shown
+    as a complete aggregate.
+  /tasks/overdue: current authenticated user's unpaginated overdue list; no forTeam
+    parameter is sent. Open statuses are todo/in_progress, with deadline < now.
+
+Team lead:
+  /teams/:teamId/members/progress: startDate/endDate, filters task createdAt.
+  /teams/:teamId/performance: current/all-date snapshot; accepts no date filter.
+  /teams/:teamId/overdue: page, limit; returns data, total, page, pages.
+    Backend resolveAccessibleTeam verifies the caller actually leads that team.
+    No requests are sent when no team is assigned. No HR-only routes are called.
+
+HR only:
+  /statistics/overview: current company snapshot, no filters.
+  /statistics/attendance: explicit range OR legacy month/year, company-wide.
+  /statistics/leaves: explicit range OR legacy year/month, company-wide.
+    Legacy grouping covers the year; approved overlaps use month/year unless an
+    explicit range is supplied. Dashboard always supplies its explicit range.
+  /statistics/tasks: startDate, endDate, teamId, employeeId, status, priority.
+  /statistics/performance-trends: range, teamId, employeeId, period=week|month.
+  /statistics/team-performance: range, teamId, employeeId (no status/priority).
+  /statistics/employees-by-department: teamId, employeeId only; current headcount.
+  /teams: all pages of nested pagination.total/totalRecords/current are read for
+    filter options; /teams/:id/members supplies that selected team's members.
+
+Compatibility:
+  getTaskStats() remains valid; null/undefined/empty/unknown query fields are omitted.
+  getAttendanceStats(month, year) and the interim four-argument signature work.
+  getLeaveStats(year) and its optional month/range arguments work.
+  Object-form range filters are supported. Invalid, incomplete or inverted date
+  ranges are rejected; explicit dates take precedence over month/year.
+  /tasks/stats is not /statistics/tasks: its old personal snapshot store call was
+  corrected to stop pretending it accepts filters. The new employee status chart
+  uses complete /employees/tasks data, avoiding that endpoint's error-to-zero fallback.
+
+METRIC MEANING AND BACKEND GAPS
+- Employee completed/work hours/trend reflect the selected period. In-progress,
+  overdue and leave balance are explicitly marked current. The server/model has
+  a default 12-day annual balance; the frontend does not invent a leave allowance.
+- Team on-time completion uses the latest done event and its deadline snapshot,
+  divided by completed tasks having both dates. Legacy tasks lacking history are
+  excluded. The server returns 0 when none qualify; denominator/coverage is not
+  exposed, so the UI explains that convention rather than claiming full coverage.
+- Task cohort reports filter creation time; event trends filter recorded history
+  time. These are labelled separately. Dates are YYYY-MM-DD in the local server
+  calendar. Trend labels are retained; leave month grouping follows backend UTC.
+- Attendance onTimeRate is supplied by the server using present records divided
+  by stored records plus calculated absences. Work hours are recorded hours.
+- Employees on leave is the backend distinct-person count for approved overlapping
+  leave, not request count, days off or employee departures. Pending count is current.
+- Team trend remains explicitly unsupported. HR /statistics/performance-trends
+  cannot be called by a team lead. Even all pages of /tasks/team/:teamId cannot
+  reconstruct the server's historical metric: it lists currently assigned,
+  non-deleted tasks, whereas task-history.service scopes statusHistory.teamId
+  across historical events, including tasks subsequently moved/deleted.
+  Backend addition needed: an ownership-authorized historical aggregation with
+  startDate/endDate/period and period/label/totalTasks/completedTasks/completionRate
+  trend rows, using the existing history service. No invented endpoint was called.
+- Department activity/rankings remain explicitly unsupported. Available department
+  data is headcount only. A backend aggregate needs department identity, validated
+  task/attendance activity measures, documented denominators and date/scope filters.
+  Team completion rankings are shown as teams, not relabelled departments.
+- Overdue is not deadline postponement frequency. No reliable deadline-change
+  history/count is exposed, so lists show days overdue only. No overload threshold
+  is defined; the UI ranks open work without labelling anyone overloaded.
+- HR overdue counting currently replaces the requested status in the backend.
+  The frontend marks that metric unavailable when a status filter is selected.
+  Backend fix needed: intersect the requested status with open statuses, rather
+  than replacing it. Other task metrics continue to use all supported filters.
+- Team current performance/overdue endpoints do not support range/member filters.
+  Those filters are not sent or implied. Attendance/leave cannot be team-filtered.
+
+FILES ADDED OR UPDATED IN THIS RECOVERY
+  src/screens/homeScreen.js
+  src/components/home/hrDashboardContent.js
+  src/components/home/dashboard/employeeDashboardContent.js
+  src/components/home/dashboard/teamLeadDashboardContent.js
+  src/components/home/dashboard/dashboardFilters.js
+  src/components/home/dashboard/dashboardUI.js
+  src/hooks/useDashboardResource.js
+  src/utils/dashboardFilters.js
+  src/utils/dashboardData.js
+  src/services/statisticsService.js
+  src/services/employeeDashboardService.js
+  src/services/teamService.js
+  store/dashboardResource.js
+  store/taskStore.js (remove ineffective personal-statistics filter argument)
+  src/screens/admin/adminDashboardScreen.js (existing broken imports/undefined icons)
+  tests/dashboard.test.cjs
+  package.json (test:dashboard script)
+  report.txt
+Other pre-existing dirty files were retained without editing them during recovery.
+
+VALIDATION
+PASS: node --test tests/dashboard.test.cjs, 25/25 tests.
+  Covers filter validation and legacy calls, allowed endpoint parameters, role
+  request scopes, date boundaries, zero/missing values, pagination completeness,
+  late results/errors, request deduplication, retry and account cache isolation.
+  Component rendering tests exercise all three roles, no-team state, empty/error
+  states and 390/1280-width layout branches with native host adapters. These are
+  automated render tests, not visual screenshots or native chart interaction tests.
+PASS: targeted ESLint --no-cache on all recovery JS/test files, zero issues.
+PASS: npx.cmd tsc --noEmit (also rerun via local TypeScript executable).
+  Existing JS project configuration does not enable comprehensive checkJs typing.
+PASS: npx.cmd expo export --platform android --output-dir dist/dashboard-android.
+  Final bundle: 1671 modules, Hermes bundle and assets exported. This is production
+  JavaScript bundling, not an APK/Gradle build or an emulator acceptance test.
+PASS: git diff --check.
+
+EXISTING REPOSITORY / ENVIRONMENT LIMITATIONS
+- Full npm run lint was attempted. A fresh whole-src ESLint run still reports
+  25 existing errors and 111 warnings outside the recovery files. Details are in
+  dist/dashboard-lint.json. Examples: missing utils/fileValidation import in an
+  unused attachment picker, undefined taskData in legacy screens/taskScreen.js,
+  DocumentPicker.isCancel references, duplicate leaveRow and JSX escaping issues.
+  Dashboard files and repaired admin screen pass targeted lint.
+- Web export attempted and blocked by the existing clockInAreaScreen.js import of
+  react-native-maps, which imports native-only codegenNativeCommands on web.
+  Attendance/map behavior was not changed to bypass this out-of-scope blocker.
+- No authenticated live API, physical-device/emulator visual acceptance, full
+  browser interaction, or iOS build was performed. No running emulator process
+  was detected. Native chart layout/touch behavior still needs a device check.
+- The supplied Figma URL was attempted but inaccessible through the available
+  web tool. Implementation therefore follows existing components/design tokens;
+  no claim of a visual match to the inaccessible Figma frame is made.
+- npm.ps1 was blocked by the machine execution policy; npm.cmd was used. npm/Expo
+  tooling required approved execution outside the sandbox because of installed
+  Node/npm path permissions. No execution policy or machine configuration changed.
+
+The feasible frontend dashboard work is implemented and Android-bundle verified.
+The backend gaps and existing web/lint blockers above remain explicit, without
+fabricated metrics or claims of live end-to-end acceptance.

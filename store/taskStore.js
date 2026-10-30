@@ -1,7 +1,78 @@
 import { create } from 'zustand';
 import taskService from '../src/services/taskService';
 
+const defaultFilters = () => ({ status: null, priority: null, teamId: null, search: '',
+  sort: 'createdAt_desc', tags: [], fromDate: null, toDate: null, assigneeId: null, page: 1, limit: 20 });
+const queryParams = filters => Object.fromEntries(Object.entries({ ...filters,
+  tags: Array.isArray(filters.tags) ? filters.tags.join(',') : filters.tags
+}).filter(([, value]) => value !== null && value !== undefined && value !== ''));
+const mergePage = (previous, items, page) => page === 1 ? items : [...new Map([...previous, ...items].map(item => [item._id, item])).values()];
+const advancedActions = (set, get) => {
+  const actions = {};
+  const readRequests = {};
+  const mutations = ["setParentTask","removeParentTask","addChecklist","updateChecklist","deleteChecklist","addChecklistItem","updateChecklistItem","deleteChecklistItem","addDependencies","removeDependency","addWatcher","removeWatcher","setTags","updateEstimate","addTimeEntry","deleteTimeEntry","deleteAttachment"];
+  mutations.forEach(name => {
+    actions[name] = async (...args) => {
+      const sessionVersion = get().sessionVersion;
+      set({ advancedLoading: true, error: null });
+      try {
+        const response = await taskService[name](...args);
+        const updated = response.data?.task || response.data;
+        if (get().sessionVersion === sessionVersion) get().syncTask(updated);
+        return response;
+      } catch (error) { if (get().sessionVersion === sessionVersion) set({ error: error?.error || error.message || 'Task update failed' }); throw error; }
+      finally { if (get().sessionVersion === sessionVersion) set({ advancedLoading: false }); }
+    };
+  });
+  ['getTaskChildren', 'getDependencies', 'getWatchers', 'getWatchingTasks', 'getTimeEntries'].forEach(name => {
+    actions[name] = (...args) => taskService[name](...args);
+  });
+  Object.entries({ getBoard: 'taskBoard', getCalendar: 'calendarTasks', getTimeline: 'timelineTasks', getTaskHistory: 'taskHistory' }).forEach(([name, key]) => {
+    actions[name] = async (...args) => {
+      const sessionVersion = get().sessionVersion;
+      const requestId = (readRequests[key] || 0) + 1;
+      const current = () => get().sessionVersion === sessionVersion && readRequests[key] === requestId;
+      readRequests[key] = requestId;
+      set({ error: null, [key]: key === 'taskBoard' ? { todo: [], in_progress: [], done: [] } : [] });
+      try {
+        const response = await taskService[name](...args);
+        if (current()) set({ [key]: response.data });
+        return response;
+      } catch (error) { if (current()) set({ error: error?.error || error.message }); throw error; }
+    };
+  });
+  return actions;
+};
+
 const useTaskStore = create((set, get) => ({
+  ...advancedActions(set, get),
+  taskBoard: { todo: [], in_progress: [], done: [] }, calendarTasks: [], timelineTasks: [], taskHistory: [],
+  advancedLoading: false, listLoading: false, page: 1, pages: 0, total: 0, hasMore: false,
+  listRequestId: 0, detailRequestId: 0, sessionVersion: 0,
+  syncTask: updated => set(state => ({
+    tasks: state.tasks.map(task => task._id === updated._id ? updated : task),
+    myTasks: state.myTasks.map(task => task._id === updated._id ? updated : task),
+    teamTasks: state.teamTasks.map(task => task._id === updated._id ? updated : task),
+    selectedTask: state.selectedTask?._id === updated._id ? updated : state.selectedTask
+  })),
+  fetchTaskPage: async (scope, params = {}) => {
+    const filters = { ...get().filters, ...params };
+    const requestId = get().listRequestId + 1;
+    set({ listRequestId: requestId, listLoading: true, error: null,
+      ...(Number(filters.page) === 1 ? { [scope === 'my' ? 'myTasks' : 'tasks']: [], page: 1, total: 0, hasMore: false } : {}) });
+    try {
+      const response = await (scope === 'my' ? taskService.getMyTasks : taskService.getAllTasks)(queryParams(filters));
+      if (get().listRequestId !== requestId) return response;
+      const key = scope === 'my' ? 'myTasks' : 'tasks';
+      set(state => ({ [key]: mergePage(state[key], response.data || [], filters.page),
+        page: response.page || 1, pages: response.pages || 0, total: response.total || 0,
+        hasMore: (response.page || 1) < (response.pages || 0), listLoading: false }));
+      return response;
+    } catch (error) {
+      if (get().listRequestId === requestId) set({ listLoading: false, error: error?.error || 'Failed to fetch tasks' });
+      throw error;
+    }
+  },
   // States
   tasks: [],
   myTasks: [],
@@ -12,14 +83,7 @@ const useTaskStore = create((set, get) => ({
   error: null,
   
   // Filters
-  filters: {
-    status: null,
-    priority: null,
-    teamId: null,
-    search: '',
-    page: 1,
-    limit: 100 // High limit to show all tasks without pagination
-  },
+  filters: defaultFilters(),
 
   /**
    * Fetch all tasks with filters
@@ -29,7 +93,7 @@ const useTaskStore = create((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const filters = { ...get().filters, ...params };
-      const response = await taskService.getAllTasks(filters);
+      const response = await taskService.getAllTasks(queryParams(filters));
       
       set({ 
         tasks: response.data || [],
@@ -53,7 +117,7 @@ const useTaskStore = create((set, get) => ({
   fetchMyTasks: async (params = {}) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await taskService.getMyTasks(params);
+      const response = await taskService.getMyTasks(queryParams({ ...get().filters, ...params }));
       
       set({ 
         myTasks: response.data || [],
@@ -78,7 +142,7 @@ const useTaskStore = create((set, get) => ({
   fetchTeamTasks: async (teamId, params = {}) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await taskService.getTeamTasks(teamId, params);
+      const response = await taskService.getTeamTasks(teamId, queryParams({ ...get().filters, ...params }));
       
       set({ 
         teamTasks: response.data || [],
@@ -100,10 +164,11 @@ const useTaskStore = create((set, get) => ({
    * @param {string} id
    */
   fetchTaskById: async (id) => {
-    set({ isLoading: true, error: null });
+    const requestId = get().detailRequestId + 1;
+    set({ detailRequestId: requestId, isLoading: true, error: null, selectedTask: get().selectedTask?._id === id ? get().selectedTask : null });
     try {
       const response = await taskService.getTaskById(id);
-      
+      if (get().detailRequestId !== requestId) return response;
       set({ 
         selectedTask: response.data,
         isLoading: false 
@@ -111,6 +176,7 @@ const useTaskStore = create((set, get) => ({
       
       return response;
     } catch (error) {
+      if (get().detailRequestId !== requestId) throw error;
       set({ 
         error: error?.error || 'Failed to fetch task details',
         isLoading: false 
@@ -134,8 +200,8 @@ const useTaskStore = create((set, get) => ({
         isLoading: false
       }));
 
-      // Refresh my tasks since user might be assigned
-      get().fetchMyTasks();
+      // Refresh in the background without turning a saved task into a creation error.
+      get().fetchMyTasks().catch(() => {});
       
       return response;
     } catch (error) {
@@ -392,18 +458,19 @@ const useTaskStore = create((set, get) => ({
   fetchTaskStats: async () => {
     set({ isLoading: true, error: null });
     try {
+      // /tasks/stats is a personal current snapshot; it does not accept filters.
       const response = await taskService.getTaskStats();
-      
-      set({ 
+
+      set({
         taskStats: response.data,
-        isLoading: false 
+        isLoading: false
       });
-      
+
       return response;
     } catch (error) {
-      set({ 
+      set({
         error: error?.error || 'Failed to fetch task statistics',
-        isLoading: false 
+        isLoading: false
       });
       throw error;
     }
@@ -415,7 +482,7 @@ const useTaskStore = create((set, get) => ({
    */
   setFilters: (newFilters) => {
     set(state => ({
-      filters: { ...state.filters, ...newFilters }
+      filters: { ...state.filters, ...newFilters, page: 1 }, page: 1, hasMore: false, listRequestId: state.listRequestId + 1
     }));
   },
 
@@ -424,14 +491,8 @@ const useTaskStore = create((set, get) => ({
    */
   resetFilters: () => {
     set({
-      filters: {
-        status: null,
-        priority: null,
-        teamId: null,
-        search: '',
-        page: 1,
-        limit: 10
-      }
+      filters: defaultFilters(), listLoading: false, page: 1, pages: 0, total: 0, hasMore: false, listRequestId: get().listRequestId + 1,
+      taskBoard: { todo: [], in_progress: [], done: [] }, calendarTasks: [], timelineTasks: [], taskHistory: []
     });
   },
 
@@ -462,6 +523,7 @@ const useTaskStore = create((set, get) => ({
    */
   reset: () => {
     set({
+      sessionVersion: get().sessionVersion + 1, detailRequestId: get().detailRequestId + 1, advancedLoading: false,
       tasks: [],
       myTasks: [],
       teamTasks: [],
@@ -469,14 +531,8 @@ const useTaskStore = create((set, get) => ({
       taskStats: null,
       isLoading: false,
       error: null,
-      filters: {
-        status: null,
-        priority: null,
-        teamId: null,
-        search: '',
-        page: 1,
-        limit: 10
-      }
+      filters: defaultFilters(), listLoading: false, page: 1, pages: 0, total: 0, hasMore: false, listRequestId: get().listRequestId + 1,
+      taskBoard: { todo: [], in_progress: [], done: [] }, calendarTasks: [], timelineTasks: [], taskHistory: []
     });
   },
 
@@ -511,7 +567,8 @@ const useTaskStore = create((set, get) => ({
     const term = searchTerm.toLowerCase();
     return tasks.filter(task => 
       task.title?.toLowerCase().includes(term) ||
-      task.description?.toLowerCase().includes(term)
+      task.description?.toLowerCase().includes(term) ||
+      task.tags?.some(tag => tag.toLowerCase().includes(term))
     );
   },
 
@@ -535,6 +592,11 @@ const useTaskStore = create((set, get) => ({
       filtered = searchTasks(filtered, filters.search);
     }
     
+    if (filters.tags?.length) filtered = filtered.filter(task => filters.tags.every(tag => task.tags?.includes(tag)));
+    if (filters.fromDate && filters.toDate) {
+      const start = new Date(filters.fromDate + 'T00:00:00'), end = new Date(filters.toDate + 'T23:59:59.999');
+      filtered = filtered.filter(task => task.dueDate && new Date(task.dueDate) >= start && new Date(task.dueDate) <= end);
+    }
     return filtered;
   },
 

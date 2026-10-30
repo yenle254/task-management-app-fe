@@ -2,11 +2,14 @@ import { Pressable, Text, StyleSheet } from "react-native";
 import React from "react";
 import Colors from "../styles/color";
 
-const AppButton = ({ text, onPress, style, textStyle }) => {
+const AppButton = ({ text, onPress, style, textStyle, disabled = false }) => {
     const defaultBackgroundColor = Colors.button;
 
     return (
         <Pressable
+            disabled={disabled}
+            accessibilityRole="button"
+            accessibilityState={{ disabled }}
             onPress={onPress} 
             style={({ pressed }) => [
                 styles.btnBase,

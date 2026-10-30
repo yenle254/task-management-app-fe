@@ -1,8 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import useLeaveStore from '../../store/leaveStore';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import authService from '../services/authService';
 import { subscribeSessionExpired } from '../services/api';
 import socketService from '../services/socketService';
+import useTaskStore from '../../store/taskStore';
 
 const AuthContext = createContext();
 
@@ -22,6 +24,8 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = subscribeSessionExpired(() => {
+      useTaskStore.getState().reset();
+      useLeaveStore.getState().reset();
       socketService.disconnect();
       setIsAuthenticated(false);
       setUser(null);
@@ -74,6 +78,8 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       
       const response = await authService.login(email, password);
+      useTaskStore.getState().reset();
+      useLeaveStore.getState().reset();
       setIsAuthenticated(true);
       setUser(response.user);
       
@@ -121,6 +127,8 @@ export const AuthProvider = ({ children }) => {
       console.log('Socket disconnected on logout');
       
       await authService.logout();
+      useTaskStore.getState().reset();
+      useLeaveStore.getState().reset();
       setIsAuthenticated(false);
       setUser(null);
     } catch (error) {
@@ -169,6 +177,11 @@ export const AuthProvider = ({ children }) => {
 
   const isHRManager = () => {
     const result = user?.role === 'hr_manager';
+    return result;
+  };
+
+  const isSystemAdmin = () => {
+    const result = user?.role === 'system_admin';
     return result;
   };
 
@@ -250,6 +263,7 @@ export const AuthProvider = ({ children }) => {
         hasRole,
         canManageTasks,
         isHRManager,
+        isSystemAdmin,
         isTeamLead,
         isEmployee,
         updateProfile,

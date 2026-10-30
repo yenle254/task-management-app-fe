@@ -240,3 +240,27 @@ No additional missing Dashboard implementation was identified within this review
 scope. Every requirement group above records its implementation and verification
 level; the remaining acceptance/environment/data-history limits are not marked as
 completed. Overall completion is not claimed.
+
+ADVANCED TASK REGRESSION UPDATE — 2026-10-28
+  Rechecked after Advanced Task model/lifecycle/concurrency changes. This update
+  supplements the earlier Dashboard audit; it does not replace its limitations.
+  Backend: npm.cmd test -- --runInBand --coverageReporters=text-summary
+  Result: 371/371 tests, 28 suites PASS (includes Dashboard services/routes).
+  Frontend: node --test --test-reporter=spec tests/dashboard.test.cjs
+  Result: 37/37 PASS, including pagination, stale response/session and legacy dates.
+  Real HTTP + isolated MongoDB: node tests/dashboard-integration.cjs
+  Result: 9 groups PASS. Evidence:
+  dist/dashboard-integration/2026-10-28T14-45-53-237Z/results.json
+  Actual fixture password login and aggregations exercised; existing DB writes 0.
+  Task integration separately compares total/done/overdue, completion/on-time,
+  member workload and monthly event trends with stored lifecycle fixtures.
+  Personal /tasks/stats had counted missing/null deadlines as overdue; fixed the
+  Task service aggregation and verified against real MongoDB counts.
+  No Dashboard semantics or legacy history backfill was introduced. Active
+  employee Dashboard reads all pages with collectPages; it does not aggregate
+  the Task store's bounded first page. Advanced Task write compensation preserves
+  status history after a failed parent update, verified against raw DB records.
+  New Android evidence covers only selected Task screens, not native Dashboard.
+  Full-app web export and previous native Dashboard limitations remain.
+  Full details, permission decisions pending, commands and artifact paths:
+  ../server/task-verification-audit.md
