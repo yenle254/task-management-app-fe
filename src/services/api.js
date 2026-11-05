@@ -63,7 +63,7 @@ apiClient.interceptors.response.use(
         }
       }
       
-      return Promise.reject(data || error.message);
+      return Promise.reject(data && typeof data === 'object' ? { ...data, status } : { error: data || error.message, status });
     } else if (error.request) {
       console.error('Network request error:', error.request);
       return Promise.reject({ error: `Network error: Cannot connect to ${API_CONFIG.BASE_URL}. Check if server is running.` });

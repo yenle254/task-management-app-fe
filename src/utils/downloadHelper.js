@@ -1,6 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Alert, Platform } from 'react-native';
+import { getAbsoluteFileUrl } from './fileUrlHelper';
 
 const getMimeType = (filename) => {
   const ext = filename?.split('.')?.pop()?.toLowerCase() || '';
@@ -31,66 +32,78 @@ const getMimeType = (filename) => {
   return mimeTypes[ext] || 'application/octet-stream';
 };
 
+let downloadSequence = 0;
+
+const downloadErrorMessage = (status, filename) => {
+  if (status === 404 || status === 410) {
+    return `"${filename}" is not available on the server (HTTP ${status}). Please ask the uploader to attach the original file again.`;
+  }
+  if (status === 401 || status === 403) {
+    return `The server denied access to this file (HTTP ${status}). Please check your account or contact the file owner.`;
+  }
+  return `The server could not provide the file (HTTP ${status}). Please try again later.`;
+};
+
 export const downloadFile = async (url, filename) => {
+  let tempFileUri;
+  let targetUri;
+  let keepTempFile = false;
+  let saved = false;
   try {
+    const absoluteUrl = getAbsoluteFileUrl(url);
+    if (!/^https?:\/\//i.test(absoluteUrl)) {
+      Alert.alert('Download Error', 'This attachment does not have a valid download URL.');
+      return null;
+    }
+    const safeFilename = String(filename || 'download').split(/[\\/]/).pop()
+      .replace(/[\x00-\x1f\x7f<>:"|?*]/g, '_').trim() || 'download';
+    if (!FileSystem.cacheDirectory) throw new Error('Temporary storage is unavailable.');
+    tempFileUri = `${FileSystem.cacheDirectory}download_${Date.now()}_${++downloadSequence}_${encodeURIComponent(safeFilename)}`;
+    const result = await FileSystem.downloadAsync(absoluteUrl, tempFileUri);
+    if (result.status !== 200) {
+      Alert.alert('Download Error', downloadErrorMessage(result.status, safeFilename));
+      return null;
+    }
+
     if (Platform.OS === 'android') {
       const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-      
-      if (!permissions.granted) {
-        Alert.alert('Permission denied', 'Cannot save file');
-        return;
-      }
-      const tempFileUri = FileSystem.cacheDirectory + 'temp_' + Date.now() + '_' + filename;
-      const downloadResult = await FileSystem.downloadAsync(url, tempFileUri);
-
-      if (downloadResult.status !== 200) {
-        throw new Error('Download failed');
-      }
-
-      const base64Content = await FileSystem.readAsStringAsync(downloadResult.uri, {
+      if (!permissions.granted) return null;
+      const base64Content = await FileSystem.readAsStringAsync(result.uri, {
         encoding: FileSystem.EncodingType.Base64,
       });
-
-      const targetUri = await FileSystem.StorageAccessFramework.createFileAsync(
+      targetUri = await FileSystem.StorageAccessFramework.createFileAsync(
         permissions.directoryUri,
-        filename,
-        getMimeType(filename)
+        safeFilename,
+        getMimeType(safeFilename)
       );
-
       await FileSystem.StorageAccessFramework.writeAsStringAsync(
         targetUri,
         base64Content,
         { encoding: FileSystem.EncodingType.Base64 }
       );
-
-      try {
-        await FileSystem.deleteAsync(downloadResult.uri, { idempotent: true });
-      } catch (e) {
-        console.log('Failed to delete temp file:', e);
-      }
-
-      Alert.alert('Successful!', `File saved to Downloads!\n${filename}`);
+      saved = true;
+      Alert.alert('Successful!', `File saved to the selected folder.\n${safeFilename}`);
       return targetUri;
-    } 
-
-    const fileUri = `${FileSystem.cacheDirectory}${encodeURIComponent(filename)}`;
-    const result = await FileSystem.downloadAsync(url, fileUri);
-
-    if (result.status !== 200) throw new Error('Download failed');
-
+    }
     if (await Sharing.isAvailableAsync()) {
       await Sharing.shareAsync(result.uri, {
-        mimeType: getMimeType(filename),
-        dialogTitle: filename,
+        mimeType: getMimeType(safeFilename),
+        dialogTitle: safeFilename,
       });
     } else {
       Alert.alert('Successful!', `File saved at:\n${result.uri}`);
     }
-
+    keepTempFile = true;
     return result.uri;
   } catch (error) {
-    console.error('Download error:', error);
-    Alert.alert('Error', error.message || 'Cannot download file');
+    Alert.alert('Download Error', error.message || 'Cannot download file. Please check your connection and try again.');
     return null;
+  } finally {
+    if (targetUri && !saved) {
+      await FileSystem.StorageAccessFramework.deleteAsync(targetUri, { idempotent: true }).catch(() => {});
+    }
+    if (tempFileUri && !keepTempFile) {
+      await FileSystem.deleteAsync(tempFileUri, { idempotent: true }).catch(() => {});
+    }
   }
 };

@@ -7,7 +7,6 @@ import Camera from "../../../assets/icons/cam.svg";
 import Colors from "../../styles/color";
 import Micro from "../../../assets/icons/micro.svg";
 import * as ImagePicker from "expo-image-picker";
-import * as Permissions from "expo-permissions";
 import { getToken } from "../../utils/authStorage";
 import { API_URL } from "../../config/api.config";
 
