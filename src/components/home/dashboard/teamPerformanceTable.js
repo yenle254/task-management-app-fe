@@ -1,14 +1,17 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import Colors from "../../../styles/color";
+import { displayNumber, isNumber, records } from '../../../utils/dashboardData';
 
 const getCompletionRateColor = (rate) => {
+  if (!isNumber(rate)) return Colors.black;
   if (rate >= 70) return "#10B981";
   if (rate >= 40) return "#F59E0B";
   return "#EF4444";
 };
 
 const TeamPerformanceTable = ({ data }) => {
+  if (!records(data)) return <Text style={styles.noData}>Not available: the response is missing these records.</Text>;
   return (
     <View style={styles.tableContainer}>
       <View style={styles.tableHeader}>
@@ -20,13 +23,13 @@ const TeamPerformanceTable = ({ data }) => {
 
       {data.length > 0 ? (
         data.map((team, index) => (
-          <View key={index} style={styles.tableRow}>
-            <Text style={[styles.tableCell, { flex: 2 }]} numberOfLines={1}>
-              {team.teamName}
+          <View key={team.teamId || index} style={styles.tableRow}>
+            <Text style={[styles.tableCell, { flex: 2 }]} numberOfLines={1} accessibilityLabel={typeof team.teamName === 'string' ? team.teamName : 'Not available'}>
+              {typeof team.teamName === 'string' ? team.teamName : 'Not available'}
             </Text>
-            <Text style={styles.tableCell}>{team.memberCount}</Text>
+            <Text style={styles.tableCell}>{displayNumber(team.memberCount)}</Text>
             <Text style={styles.tableCell}>
-              {team.completedTasks}/{team.totalTasks}
+              {isNumber(team.completedTasks) && isNumber(team.totalTasks) ? `${displayNumber(team.completedTasks)}/${displayNumber(team.totalTasks)}` : 'Not available'}
             </Text>
             <Text
               style={[
@@ -37,7 +40,7 @@ const TeamPerformanceTable = ({ data }) => {
                 },
               ]}
             >
-              {team.completionRate}%
+              {displayNumber(team.completionRate, '%')}
             </Text>
           </View>
         ))
@@ -81,6 +84,7 @@ const styles = StyleSheet.create({
   },
   tableCell: {
     flex: 1,
+    minWidth: 0,
     textAlign: "center",
     fontSize: 12,
     color: "#374151",

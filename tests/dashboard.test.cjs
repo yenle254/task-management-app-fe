@@ -128,7 +128,7 @@ test('zero remains zero; missing fields, strings and invalid numbers are not coe
   assert.throws(() => d.responseData({ success: true }));
 });
 test('task status aggregates use complete records and reject unknown statuses', () => {
-  assert.deepEqual(d.countTaskStatuses([{ status: 'todo' }, { status: 'done' }, { status: 'todo' }]), [{ _id: 'todo', count: 2 }, { _id: 'in_progress', count: 0 }, { _id: 'done', count: 1 }]);
+  assert.deepEqual(d.countTaskStatuses([{ status: 'todo' }, { status: 'done' }, { status: 'todo' }]), [{ _id: 'todo', count: 2 }, { _id: 'in_progress', count: 0 }, { _id: 'in_review', count: 0 }, { _id: 'done', count: 1 }]);
   assert.equal(d.countTaskStatuses([{ status: 'unexpected' }]), null);
 });
 test('overdue excludes completed tasks and preserves less-than-one-day as zero', () => {
@@ -223,6 +223,7 @@ function renderDashboard(filename, { role, teamId, width = 390, states = [], exp
   } };
   const scopedLoad = loader({
     'react-native': native,
+    'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) },
     'react-native-chart-kit': { BarChart: host('div'), LineChart: host('div'), PieChart: host('div') },
     '@react-native-picker/picker': { Picker },
     [path.resolve(__dirname, '../src/services/api.js')]: api,
@@ -255,7 +256,9 @@ test('HR UI keeps company metrics separate and supports desktop and mobile colum
     await rendered.complete();
     assert.match(rendered.html, /HR dashboard/); assert.match(rendered.html, /Company-wide/); assert.match(rendered.html, /Department task activity/);
     assert.match(rendered.html, width === 1280 ? /48.8%/ : /100%/);
-    assert.equal(rendered.calls.length, 9);
+    assert.equal(rendered.calls.length, 8);
+    assert.doesNotMatch(rendered.html, /Performance trend|Completed tasks over time|Trend grouping/);
+    assert.ok(rendered.calls.every((call) => !call.url.includes('trends')));
     for (const call of rendered.calls.filter((call) => ['/statistics/attendance', '/statistics/leaves'].includes(call.url))) assert.deepEqual(Object.keys(call.params).sort(), ['endDate', 'startDate']);
   }
 });
@@ -338,7 +341,7 @@ test('loading skeleton hides stale children and missing options are not selectab
 
 test('HR department ranking is explicitly headcount, with descending real counts', async () => {
   const rendered = renderDashboard('src/components/home/hrDashboardContent.js', { states: [
-    { data: [] }, {}, {}, {}, {}, {}, {}, { data: [] },
+    { data: [] }, {}, {}, {}, {}, {}, { data: [] },
     { data: [{ department: 'Small', count: 1 }, { department: 'Large', count: 3 }] },
   ] });
   await rendered.complete();
@@ -362,7 +365,7 @@ test('malformed rows do not crash any role dashboard or silently create zero met
   const scenarios = [
     ['src/components/home/dashboard/employeeDashboardContent.js', { states: [{ data: { performanceTrend: [null] } }, { data: [null] }, { data: [null] }] }],
     ['src/components/home/dashboard/teamLeadDashboardContent.js', { role: 'team_lead', teamId: 'mine', states: [{ data: { workloadByMember: [null] } }, { data: [null] }, { data: { tasks: [null], pages: 1, total: 1 } }] }],
-    ['src/components/home/hrDashboardContent.js', { states: [{ data: [null] }, {}, {}, { data: { daily: [null] } }, { data: { byType: [null] } }, {}, { data: { trend: [null] } }, { data: [null] }, { data: [null] }] }],
+    ['src/components/home/hrDashboardContent.js', { states: [{ data: [null] }, {}, {}, { data: { daily: [null] } }, { data: { byType: [null] } }, {}, { data: [null] }, { data: [null] }] }],
   ];
   for (const [filename, options] of scenarios) {
     const rendered = renderDashboard(filename, options);

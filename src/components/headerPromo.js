@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-const HeaderPromo = ({text, subtext, color}) => {
+const HeaderPromo = ({text, subtext, color, style, titleStyle, subtitleStyle}) => {
     return (
-        <View style={[styles.container, {backgroundColor: color}]}>
-            <Text style={styles.promoText}>{text}</Text>
-            <Text style={styles.subText}>{subtext}</Text>
+        <View style={[styles.container, {backgroundColor: color}, style]}>
+            <Text style={[styles.promoText, titleStyle]}>{text}</Text>
+            <Text style={[styles.subText, subtitleStyle]}>{subtext}</Text>
         </View>
     )   
 }

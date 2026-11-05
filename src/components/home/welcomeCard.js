@@ -1,8 +1,6 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import Welcome from "../../../assets/icons/welcome.svg";
-
 import Colors from '../../styles/color';
 
 const WelcomeCard = () => {
@@ -10,11 +8,8 @@ const WelcomeCard = () => {
     <View style={styles.wrapper}>
     <View style={styles.container}>
       <View style={styles.left}>
-        <Text style={styles.text1}>Welcome back!!</Text>
-        <Text style={styles.text2}>Checkout today task.</Text>
-      </View>
-      <View style={styles.right}>
-        <Welcome width={100} height={100} />
+        <Text style={styles.text1}>Welcome Back</Text>
+        <Text style={styles.text2}>Checkout today tasks!</Text>
       </View>
     </View>
     </View>
@@ -31,6 +26,7 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.primary,
         borderRadius: 15,
         padding: 15,
+        minHeight: 100,
         flexDirection: "row",
         justifyContent: "space-between",
         marginTop: 16,
