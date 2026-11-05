@@ -4,12 +4,22 @@ import Colors from "../../styles/color";
 import Avatar from "../avatar";
 
 const UserCard = memo(
-  ({ user, isSelected, onToggle, isAlreadyMember, disabledReason }) => {
+  ({
+    user,
+    isSelected,
+    onToggle,
+    isAlreadyMember,
+    disabledReason,
+    canChangeRole,
+    onChangeRole,
+  }) => {
     const isDisabled = !!disabledReason || !!isAlreadyMember;
     const badgeText =
       disabledReason || (isAlreadyMember ? "Already a member" : null);
     const avatarUrl = user.profile?.avatar || null;
     const avatarKey = "avt1";
+    const isEditableRole =
+      user.role === "employee" || user.role === "team_lead";
 
     return (
       <TouchableOpacity
@@ -31,21 +41,53 @@ const UserCard = memo(
               {user.profile?.position || "Employee"} •{" "}
               {user.profile?.department || "No Department"}
             </Text>
-            {badgeText && (
-              <View style={styles.memberBadge}>
-                <Text style={styles.memberBadgeText}>{badgeText}</Text>
+            <View style={styles.badgesRow}>
+              <View
+                style={
+                  user.role === "team_lead"
+                    ? styles.roleBadgeLead
+                    : styles.roleBadgeEmployee
+                }
+              >
+                <Text
+                  style={
+                    user.role === "team_lead"
+                      ? styles.roleBadgeLeadText
+                      : styles.roleBadgeEmployeeText
+                  }
+                >
+                  {user.role === "team_lead" ? "Team Lead" : "Employee"}
+                </Text>
               </View>
-            )}
+              {badgeText && (
+                <View style={styles.memberBadge}>
+                  <Text style={styles.memberBadgeText}>{badgeText}</Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
 
-        {!isDisabled && (
-          <View
-            style={[styles.checkbox, isSelected && styles.checkboxSelected]}
-          >
-            {isSelected && <View style={styles.checkboxInner} />}
-          </View>
-        )}
+        <View style={styles.rightActions}>
+          {canChangeRole && isEditableRole && onChangeRole && (
+            <TouchableOpacity
+              style={styles.roleButton}
+              onPress={() => onChangeRole(user)}
+            >
+              <Text style={styles.roleButtonText}>
+                {user.role === "team_lead" ? "Set Employee" : "Set Lead"}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {!isDisabled && (
+            <View
+              style={[styles.checkbox, isSelected && styles.checkboxSelected]}
+            >
+              {isSelected && <View style={styles.checkboxInner} />}
+            </View>
+          )}
+        </View>
       </TouchableOpacity>
     );
   }
@@ -67,7 +109,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary + "10",
   },
   containerDisabled: {
-    opacity: 0.5,
+    opacity: 0.7,
   },
   left: {
     flexDirection: "row",
@@ -88,18 +130,66 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#666666",
   },
+  badgesRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 4,
+  },
+  roleBadgeLead: {
+    backgroundColor: Colors.frame,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  roleBadgeLeadText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: Colors.primary,
+  },
+  roleBadgeEmployee: {
+    backgroundColor: "#E8E8E8",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  roleBadgeEmployeeText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#666666",
+  },
   memberBadge: {
     backgroundColor: "#FFD700" + "40",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
     alignSelf: "flex-start",
-    marginTop: 4,
   },
   memberBadgeText: {
     fontSize: 10,
     fontWeight: "600",
     color: "#B8860B",
+  },
+  rightActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginLeft: 8,
+  },
+  roleButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: Colors.frame,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    borderRadius: 8,
+  },
+  roleButtonText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: Colors.primary,
   },
   checkbox: {
     width: 24,
