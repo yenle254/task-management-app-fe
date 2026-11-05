@@ -4,20 +4,21 @@ import Colors from "../../styles/color"
 import ProgressBar from "../progressBar";
 import { CategoryMap } from "@/src/utils/categoryMapping";
 
-const TaskStatusCard = ({ todoCount, inProgressCount, doneCount }) => {
+const TaskStatusCard = ({ todoCount, inProgressCount, doneCount, inReviewCount = 0, compact = false }) => {
+  const iconSize = compact ? 26 : 32;
   const MatDoTucGian = CategoryMap["mat_do_tuc_gian"];
   const MatCamBuon = CategoryMap["mat_cam_buon"];
   const MatXanhCuoiLon = CategoryMap["mat_xanh_cuoi_lon"];
   const MatVangMiengNgang = CategoryMap["mat_vang_mieng_ngang"];
 
-  const totalTasks = todoCount + inProgressCount + doneCount;
+  const totalTasks = todoCount + inProgressCount + inReviewCount + doneCount;
   const completionRate = totalTasks > 0 ? (doneCount / totalTasks) * 100 : 0;
   const pendingRate = totalTasks > 0 ? ((todoCount + inProgressCount) / totalTasks) * 100 : 0;
 
   const getStatus = () => {
     if (totalTasks === 0) {
       return {
-        icon: <MatXanhCuoiLon width={32} height={32} />,
+        icon: <MatXanhCuoiLon width={iconSize} height={iconSize} />,
         title: "All clear",
         tagText: "Good",
         tagColor: "#22c55e",
@@ -28,9 +29,9 @@ const TaskStatusCard = ({ todoCount, inProgressCount, doneCount }) => {
       };
     }
 
-    if (todoCount === 0 && inProgressCount === 0 && doneCount > 0) {
+    if (todoCount === 0 && inProgressCount === 0 && inReviewCount === 0 && doneCount > 0) {
       return {
-        icon: <MatXanhCuoiLon width={32} height={32} />,
+        icon: <MatXanhCuoiLon width={iconSize} height={iconSize} />,
         title: "Early completion",
         tagText: "Good",
         tagColor: "#22c55e",
@@ -43,7 +44,7 @@ const TaskStatusCard = ({ todoCount, inProgressCount, doneCount }) => {
 
     if (pendingRate < 50) {
       return {
-        icon: <MatVangMiengNgang width={32} height={32} />,
+        icon: <MatVangMiengNgang width={iconSize} height={iconSize} />,
         title: "Good progress",
         tagText: "Okay",
         tagColor: "white",
@@ -56,7 +57,7 @@ const TaskStatusCard = ({ todoCount, inProgressCount, doneCount }) => {
 
     if (pendingRate >= 50 && pendingRate < 75) {
       return {
-        icon: <MatCamBuon width={32} height={32} />,
+        icon: <MatCamBuon width={iconSize} height={iconSize} />,
         title: "Needs attention",
         tagText: "Struggle",
         tagColor: "white",
@@ -68,7 +69,7 @@ const TaskStatusCard = ({ todoCount, inProgressCount, doneCount }) => {
     }
 
     return {
-      icon: <MatDoTucGian width={32} height={32} />,
+      icon: <MatDoTucGian width={iconSize} height={iconSize} />,
       title: "Overwhelmed",
       tagText: "Bad",
       tagColor: "white",
@@ -82,13 +83,15 @@ const TaskStatusCard = ({ todoCount, inProgressCount, doneCount }) => {
   const status = getStatus();
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, compact && styles.compactContainer]}>
+      {inReviewCount > 0 && <Text style={{ color: Colors.primary, marginBottom: 8 }}>{inReviewCount} awaiting review</Text>}
+      <View style={[styles.header, compact && { marginBottom: 6 }]}>
         <View style={styles.titleRow}>
-          <Text style={styles.title}>{status.title}</Text>
+          <Text style={[styles.title, compact && { fontSize: 14 }]}>{status.title}</Text>
           <View
             style={[
               styles.tag,
+              compact && { paddingHorizontal: 8, paddingVertical: 3 },
               { backgroundColor: status.tagBgColor },
             ]}
           >
@@ -99,10 +102,10 @@ const TaskStatusCard = ({ todoCount, inProgressCount, doneCount }) => {
         </View>
       </View>
 
-      <Text style={styles.message}>{status.message}</Text>
+      <Text style={[styles.message, compact && styles.compactMessage]}>{status.message}</Text>
 
-      <View style={styles.progressContainer}>
-        <View style={styles.iconContainer}>{status.icon}</View>
+      <View style={[styles.progressContainer, compact && styles.compactProgress]}>
+        <View style={[styles.iconContainer, compact && { marginLeft: 0 }]}>{status.icon}</View>
         <View style={{ flex: 1, marginLeft: 12 }}>
             <ProgressBar progress={status.progress} color={status.progressColor} />
         </View>
@@ -114,6 +117,9 @@ const TaskStatusCard = ({ todoCount, inProgressCount, doneCount }) => {
 export default TaskStatusCard;
 
 const styles = StyleSheet.create({
+  compactContainer: { marginHorizontal: 0, marginTop: 12, padding: 12, borderRadius: 12, shadowOpacity: 0, elevation: 0 },
+  compactMessage: { fontSize: 12, lineHeight: 18, textAlign: 'left', marginBottom: 8 },
+  compactProgress: { marginTop: 0, padding: 8, borderRadius: 12, backgroundColor: Colors.secondary, borderWidth: 1, borderColor: Colors.borderGray },
   container: {
     backgroundColor: Colors.white,
     borderRadius: 16,

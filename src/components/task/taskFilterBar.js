@@ -8,7 +8,7 @@ import Colors from '../../styles/color';
 export const dateKey = date => [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
 const sorts = { createdAt_desc: 'Newest first', createdAt_asc: 'Oldest first', dueDate_asc: 'Deadline ascending',
   dueDate_desc: 'Deadline descending', priority_desc: 'Priority high to low', priority_asc: 'Priority low to high', title_asc: 'Title A–Z' };
-export default function TaskFilterBar({ filters, onChange, onReset }) {
+export default function TaskFilterBar({ filters, onChange, onReset, style }) {
   const [open, setOpen] = useState(false);
   const [priority, setPriority] = useState(false);
   const [dateField, setDateField] = useState(null);
@@ -17,7 +17,7 @@ export default function TaskFilterBar({ filters, onChange, onReset }) {
     if (!!draft.fromDate !== !!draft.toDate || (draft.fromDate && draft.fromDate > draft.toDate)) return Alert.alert('Date range', 'Select both dates, with From before To');
     onChange(draft); setOpen(false);
   };
-  return <View style={{ padding: 12 }}>
+  return <View style={[{ padding: 12 }, style]}>
     <TouchableOpacity onPress={() => { setDraft(filters); setOpen(true); }}>
       <Text style={{ color: Colors.primary }}>Filters · {filters.priority || 'All priorities'} · {sorts[filters.sort]}</Text>
     </TouchableOpacity>

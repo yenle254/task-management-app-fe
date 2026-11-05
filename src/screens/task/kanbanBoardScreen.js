@@ -9,7 +9,7 @@ import useTaskStore from '../../../store/taskStore';
 import { useAuth } from '../../contexts/authContext';
 import Colors from '../../styles/color';
 
-const columns = { todo: 'To do', in_progress: 'In progress', done: 'Done' };
+const columns = { todo: 'To do', in_progress: 'In progress', in_review: 'In Review', done: 'Done' };
 const idOf = value => value?._id || value;
 function DraggableCard({ task, enabled, onDrop, onDrag, onMove, onOpen }) {
   const x = useSharedValue(0), y = useSharedValue(0);
@@ -65,6 +65,7 @@ export default function KanbanBoardScreen({ navigation, route }) {
         column.measureInWindow((left, top, width, height) => resolve({ status, left, top, width, height }));
       })));
       const target = bounds.find(box => box && x >= box.left && x <= box.left + box.width && y >= box.top && y <= box.top + box.height);
+      if (target && (!['todo', 'in_progress'].includes(target.status) || !['todo', 'in_progress'].includes(task.status))) { Alert.alert('Review', 'Submit and review from the task details screen.'); return; }
       if (target && target.status !== task.status) { await updateTaskStatus(task._id, target.status); await load(); }
     } catch (err) { Alert.alert('Status', err?.error || 'Could not move task'); }
     finally { pending.current = false; }
@@ -84,7 +85,7 @@ export default function KanbanBoardScreen({ navigation, route }) {
             {!taskBoard[status]?.length && <Text>No tasks</Text>}
             {(taskBoard[status] || []).map(task => <DraggableCard key={task._id} task={task} onDrag={active => { setDragging(active); if (!active) setFloating(null); }} onDrop={drop}
               onMove={(item, x, y) => setFloating({ task: item, x: x - rootOffset.current.x, y: y - rootOffset.current.y })}
-              enabled={!loading && (user.role === 'hr_manager' || idOf(task.assignedBy) === user._id || task.assignedTo.some(person => idOf(person) === user._id))}
+              enabled={!loading && ['todo', 'in_progress'].includes(task.status) && (user.role === 'hr_manager' || idOf(task.assignedBy) === user._id || task.assignedTo.some(person => idOf(person) === user._id))}
               onOpen={() => navigation.navigate('TaskDetail', { taskId: task._id })} />)}
           </ScrollView>
         </View>)}

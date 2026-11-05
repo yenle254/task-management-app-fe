@@ -1,3 +1,5 @@
+import TaskReviewPanel from '../../components/task/taskReviewPanel';
+import { getTaskStatus } from '../../utils/taskStatusMap';
 import { useAuth } from "@/src/contexts/authContext";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
@@ -151,14 +153,7 @@ const TaskDetailScreen = () => {
       year: "numeric",
     });
 
-  const getStatusConfig = (status) => {
-    const map = {
-      todo: { label: "To Do", color: "#8E8E93" },
-      in_progress: { label: "In Progress", color: "#007AFF" },
-      done: { label: "Done", color: "#34C759" },
-    };
-    return map[status] || map.todo;
-  };
+  const getStatusConfig = getTaskStatus;
 
   const formatDeadline = (dateString) => {
     if (!dateString) return null;
@@ -203,8 +198,9 @@ const TaskDetailScreen = () => {
 
   const canManageTask = canManageTasks();
   const isAssignedToTask = selectedTask.assignedTo?.some((p) => p._id === user?._id);
-  const canToggleSubtasks = isAssignedToTask || canManageTask;
-  const canAddDeleteSubtasks = canManageTask;
+  const locked = selectedTask.status === 'in_review';
+  const canToggleSubtasks = !locked && (isAssignedToTask || canManageTask);
+  const canAddDeleteSubtasks = !locked && canManageTask;
   const statusKey = selectedTask.status === "in_progress" ? "inprogress" : selectedTask.status;
   const StatusIcon = CategoryMap[statusKey] || DefaultCategory;
   const statusConfig = getStatusConfig(selectedTask.status);
@@ -257,7 +253,7 @@ const TaskDetailScreen = () => {
             {canManageTask && (
               <View style={styles.headerActions}>
                 <TouchableOpacity 
-                  onPress={() => navigation.navigate("EditTask", { taskId })} 
+                  disabled={locked} onPress={() => navigation.navigate("EditTask", { taskId })} 
                   style={styles.actionBtn}
                 >
                   <EditIcon width={20} height={20} />
@@ -377,7 +373,7 @@ const TaskDetailScreen = () => {
         {/* Status Checkbox */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Status</Text>
-          {(selectedTask.assignedTo?.some((p) => (p._id || p) === user?._id) || (selectedTask.assignedBy?._id || selectedTask.assignedBy) === user?._id || user?.role === 'hr_manager') ? (
+          {(!locked && (selectedTask.assignedTo?.some((p) => (p._id || p) === user?._id) || (selectedTask.assignedBy?._id || selectedTask.assignedBy) === user?._id || user?.role === 'hr_manager')) ? (
             <View style={styles.statusCheckboxContainer}>
               <TouchableOpacity
                 style={styles.checkboxItem}
@@ -409,20 +405,7 @@ const TaskDetailScreen = () => {
                 <Text style={styles.checkboxLabel}>In Progress</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.checkboxItem}
-                onPress={() => handleStatusUpdate("done")}
-              >
-                <View style={[
-                  styles.checkbox,
-                  selectedTask.status === "done" && styles.checkboxChecked
-                ]}>
-                  {selectedTask.status === "done" && (
-                    <View style={styles.checkboxInner} />
-                  )}
-                </View>
-                <Text style={styles.checkboxLabel}>Done</Text>
-              </TouchableOpacity>
+
             </View>
           ) : (
             <View style={[styles.statusBadge, { backgroundColor: Colors.primary, alignSelf: "flex-start" }]}>
@@ -431,6 +414,8 @@ const TaskDetailScreen = () => {
             </View>
           )}
         </View>
+
+        <TaskReviewPanel task={selectedTask} />
 
         <TaskAdvancedSections task={selectedTask} navigation={navigation} />
 
