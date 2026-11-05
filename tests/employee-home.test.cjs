@@ -36,15 +36,21 @@ function native(presses) {
     ActivityIndicator: () => React.createElement('span', null, 'Loading'), StyleSheet: { create: value => value } };
 }
 
+const reviewData = { awaitingReviewCount: 0, submittedByMeCount: 0 };
+
 function renderHome(states) {
   let index = 0;
   const presses = [], calls = [], fetchers = [], navigations = [], reloads = [];
-  const resources = states.map((state, i) => ({ ...state, reload: () => reloads.push(i) }));
+  // Home reads three resources in order: today's schedule, assigned tasks,
+  // and the review summary. Callers pass the first two.
+  const allStates = [...states, { status: 'ready', data: reviewData }];
+  const resources = allStates.map((state, i) => ({ ...state, reload: () => reloads.push(i) }));
   const mocks = {
     'react-native': native(presses),
     '@react-navigation/native': { useFocusEffect: () => {} },
     [absolute('src/hooks/useDashboardResource.js')]: { __esModule: true, default: (key, fetcher) => { fetchers.push(fetcher); return resources[index++]; }, useDashboardRefresh: () => {} },
     [absolute('src/services/taskService.js')]: { getCalendar: async params => { calls.push(['calendar', params]); return { success: true, data: [task] }; }, getMyTasks: async params => { calls.push(['my', params]); return response; } },
+    [absolute('src/services/employeeDashboardService.js')]: { getEmployeeDashboard: async () => { calls.push(['review']); return { success: true, data: reviewData }; } },
     [absolute('src/components/avatar.js')]: () => null,
     [absolute('src/components/progressBar.js')]: () => null,
     [absolute('src/components/taskCategory.js')]: () => null,
@@ -61,6 +67,7 @@ test('ordinary employee Home fetches only personal calendar and assigned tasks; 
   assert.deepEqual(result.calls, [
     ['calendar', { from: data.localDay(), to: data.localDay(), scope: 'self' }],
     ['my', { page: 1, limit: 5, sort: 'createdAt_desc' }],
+    ['review'],
   ]);
   for (const text of ['Welcome Back', 'Today schedules', 'My tasks', 'My actual assignment']) assert.ok(result.html.includes(text));
   assert.doesNotMatch(result.html, /Report filters|My dashboard|Performance trend|My overview/);
