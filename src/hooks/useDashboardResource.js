@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useStore } from 'zustand';
+import { subscribeTaskReview } from '../utils/taskReviewEvents';
 import { createDashboardResource } from '../../store/dashboardResource';
 
 export default function useDashboardResource(key, fetcher, enabled = true) {
@@ -12,6 +13,7 @@ export default function useDashboardResource(key, fetcher, enabled = true) {
     if (enabled) resource.load(key, fetchRef.current);
     return resource.cancel;
   }, [resource, key, enabled]);
+  useEffect(() => subscribeTaskReview(() => { reload().catch(() => {}); }), [reload]);
   return { ...(state.key === key && enabled ? state : { status: 'loading', data: null, error: null }), reload };
 }
 

@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
+import ClockinScreen from "../screens/clockinScreen";
 import ClockInAreaScreen from "../screens/clockInAreaScreen";
 import ChatScreen from "../screens/messages/chatScreen";
 import MessageScreen from "../screens/messages/messageScreen";
@@ -19,6 +20,8 @@ import KanbanBoardScreen from "../screens/task/kanbanBoardScreen";
 import TaskCalendarScreen from "../screens/task/taskCalendarScreen";
 import TaskTimelineScreen from "../screens/task/taskTimelineScreen";
 
+import ApprovalsScreen from '../screens/task/approvalsScreen';
+
 const Stack = createNativeStackNavigator();
 
 const StackNavigator = () => {
@@ -36,6 +39,7 @@ const StackNavigator = () => {
       <Stack.Screen name="SubmitLeave" component={SubmitLeaveScreen} />
       <Stack.Screen name="MyLeaves" component={LeaveScreen} />
       <Stack.Screen name="LeaveInbox" component={PendingLeavesScreen} />
+      <Stack.Screen name="Attendance" component={ClockinScreen} />
       <Stack.Screen name="ClockInArea" component={ClockInAreaScreen} />
       <Stack.Screen name="Profile" component={ProfileStackNavigator} />
       <Stack.Screen name="Notification" component={NotificationScreen} />
@@ -43,6 +47,7 @@ const StackNavigator = () => {
       <Stack.Screen name="TaskCalendar" component={TaskCalendarScreen} />
       <Stack.Screen name="TaskTimeline" component={TaskTimelineScreen} />
       <Stack.Screen name="EditTask" component={EditTaskScreen} />
+      <Stack.Screen name="Approvals" component={ApprovalsScreen} />
       <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />
       <Stack.Screen name="CreateTask" component={CreateTaskScreen} />
       <Stack.Screen name="ImageViewer" component={ImageViewerScreen} />

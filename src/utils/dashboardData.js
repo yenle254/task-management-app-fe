@@ -71,7 +71,7 @@ export async function collectPages(fetchPage, teamPagination = false) {
 
 export function countTaskStatuses(tasks) {
   if (!records(tasks)) return null;
-  const counts = { todo: 0, in_progress: 0, done: 0 };
+  const counts = { todo: 0, in_progress: 0, in_review: 0, done: 0 };
   for (const task of tasks) {
     if (!Object.prototype.hasOwnProperty.call(counts, task.status)) return null;
     counts[task.status] += 1;
@@ -80,7 +80,7 @@ export function countTaskStatuses(tasks) {
 }
 
 export function daysOverdue(task, now = new Date()) {
-  if (!task || !['todo', 'in_progress'].includes(task.status) || !task.dueDate) return null;
+  if (!task || !['todo', 'in_progress', 'in_review'].includes(task.status) || !task.dueDate) return null;
   const due = new Date(task.dueDate).getTime();
   return Number.isFinite(due) && due < now.getTime() ? Math.floor((now.getTime() - due) / 86400000) : null;
 }

@@ -10,6 +10,8 @@ import MatXanhCuoiLon from "../../assets/icons/matxanhcuoilon.svg"
 import ToDo from "../../assets/icons/todo.svg"
 
 export const CategoryMap = {
+    'in_review': InProgress,
+    'inreview': InProgress,
     'todo': ToDo,
     'in_progress': InProgress,
     'inprogress': InProgress,

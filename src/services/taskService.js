@@ -1,6 +1,13 @@
 import apiClient from './api';
 
 const taskService = {
+  reassignReview: (id, ownership) => apiClient.put(`/tasks/${id}`, ownership),
+  submitForReview: (id, note) => apiClient.post(`/tasks/${id}/submit`, { note }),
+  approveTask: (id, note) => apiClient.post(`/tasks/${id}/approve`, { note }),
+  requestChanges: (id, reason) => apiClient.post(`/tasks/${id}/request-changes`, { reason }),
+  withdrawSubmission: id => apiClient.post(`/tasks/${id}/withdraw`, {}),
+  getPendingApproval: params => apiClient.get('/tasks/pending-approval', { params }),
+  getPendingApprovalStats: params => apiClient.get('/tasks/pending-approval/stats', { params }),
   setParentTask: async (id, parentTaskId) => {
     try { return await apiClient.post(`/tasks/${id}/parent`, { parentTaskId }); }
     catch (error) { throw error; }
