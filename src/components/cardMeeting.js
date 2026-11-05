@@ -7,7 +7,7 @@ import Colors from "../styles/color";
 import AppIcon from "./appIcon";
 import Avatar from "./avatar";
 
-const CardMeeting = ({ name, timeStart, timeEnd, description, assignees }) => {
+const CardMeeting = ({ name, timeStart, timeEnd, timeLabel, description, assignees = [], onPress }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -18,30 +18,32 @@ const CardMeeting = ({ name, timeStart, timeEnd, description, assignees }) => {
             height={24}
             color={Colors.primary}
           />
-          <Text style={styles.nameText}>{name}</Text>
+          <Text style={styles.nameText} numberOfLines={2}>{name}</Text>
         </View>
         <View style={styles.headerRight}>
           <Clock width={16} height={16} />
           <Text style={styles.time}>
-            {timeStart} - {timeEnd}
+            {timeLabel || [timeStart, timeEnd].filter(Boolean).join(' – ') || 'Time not set'}
           </Text>
         </View>
       </View>
       <View style={styles.body}>
-        <Text style={styles.description}>{description}</Text>
+        {!!description && <Text style={styles.description} numberOfLines={2}>{description}</Text>}
         <View style={styles.bottom}>
           <View style={{ flexDirection: "row"}}>
-            {(assignees || []).map((assigneeName, index) => (
+            {assignees.slice(0, 3).map((assignee, index) => (
               <Avatar
                 key={index}
-                name={assigneeName}
+                name={typeof assignee === 'string' ? assignee : assignee.profile?.fullName || assignee.email}
+                url={typeof assignee === 'object' ? assignee.profile?.avatar : undefined}
                 width={30}
                 height={30}
                 style={{ marginRight: 5 }}
               />
             ))}
+            {assignees.length > 3 && <Text style={styles.moreAssignees}>+{assignees.length - 3}</Text>}
           </View>
-          <AppButton text="Details" />
+          <AppButton text="Details" onPress={onPress} />
         </View>
       </View>
     </View>
@@ -59,16 +61,21 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
+    flexWrap: 'wrap',
+    gap: 8,
     justifyContent: "space-between",
     marginBottom: 10,
   },
   headerLeft: {
+    flex: 1,
+    minWidth: 120,
     flexDirection: "row",
     gap: 10,
     alignItems: "center",
   },
   nameText: {
-    fontSize: 16,
+    flex: 1,
+    fontSize: 14,
     fontWeight: "600",
     color: "black",
   },
@@ -78,11 +85,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerRight: {
+    maxWidth: '100%',
     flexDirection: "row",
     gap: 5,
     alignItems: "center",
   },
   time: {
+    flexShrink: 1,
     fontSize: 12,
     fontWeight: "500",
   },
@@ -92,5 +101,6 @@ const styles = StyleSheet.create({
     fontWeight: "450",
     color: "#555555ff",
   },
+  moreAssignees: { alignSelf: 'center', fontSize: 12, color: Colors.primary },
 
 });

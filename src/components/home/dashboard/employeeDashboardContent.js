@@ -22,6 +22,8 @@ export default function EmployeeDashboardContent({ onRefresh }) {
     <DashboardFilters filters={filters} onChange={setFilters} />
     <Section title="My overview" resource={dashboard}>
       <Metrics items={[
+        ['Awaiting review', data?.awaitingReviewCount],
+        ['Submitted by me', data?.submittedByMeCount],
         ['In progress', data?.tasks?.inProgress, '', 'Current snapshot'],
         ['Completed', data?.tasks?.completed, '', 'Completion events in selected period'],
         ['Overdue', data?.tasks?.overdue, '', 'Currently open past deadline'],

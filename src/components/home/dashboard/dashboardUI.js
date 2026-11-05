@@ -3,13 +3,13 @@ import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } fr
 import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
 import Colors from '../../../styles/color';
 import { displayNumber, isNumber, records } from '../../../utils/dashboardData';
-import { baseChartConfig, DISTRIBUTION_COLORS, DISTRIBUTION_LABELS } from './chartConfig';
+import { baseChartConfig, DISTRIBUTION_COLORS, DISTRIBUTION_LABELS, rgbaFromHex } from './chartConfig';
 
 export const Note = ({ children }) => <Text style={styles.note}>{children}</Text>;
 export const Empty = ({ children = 'No data available.' }) => <Text accessibilityRole="text" style={styles.empty}>{children}</Text>;
-export const Action = ({ children, onPress, disabled = false }) => (
-  <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={[styles.action, disabled && { opacity: 0.45 }]}>
-    <Text style={styles.actionText}>{children}</Text>
+export const Action = ({ children, onPress, disabled = false, style, textStyle }) => (
+  <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={[styles.action, style, disabled && { opacity: 0.45 }]}>
+    <Text style={[styles.actionText, textStyle]}>{children}</Text>
   </Pressable>
 );
 
@@ -20,9 +20,9 @@ export function DashboardGrid({ children }) {
   ))}</View>;
 }
 
-export function Section({ title, note, resource, children }) {
-  return <View style={styles.section}>
-    <Text accessibilityRole="header" style={styles.title}>{title}</Text>
+export function Section({ title, note, resource, children, bare = false }) {
+  return <View style={bare ? styles.bareSection : styles.section}>
+    {!bare && <Text accessibilityRole="header" style={styles.title}>{title}</Text>}
     {note && <Note>{note}</Note>}
     {resource?.status === 'loading' ? (
       <View accessibilityLabel={`Loading ${title}`} accessibilityState={{ busy: true }} style={styles.skeletonWrap}>
@@ -35,26 +35,31 @@ export function Section({ title, note, resource, children }) {
   </View>;
 }
 
-export function Metrics({ items }) {
-  return <View style={styles.metrics}>{items.map(([label, value, suffix = '', note]) => (
-    <View key={label} style={styles.metric}>
-      <Text style={styles.metricLabel}>{label}</Text>
-      <Text style={styles.metricValue}>{displayNumber(value, suffix)}</Text>
+export function Metrics({ items, colors }) {
+  return <View style={styles.metrics}>{items.map(([label, value, suffix = '', note], index) => (
+    <View key={label} style={[styles.metric, colors?.[index] && [styles.coloredMetric, { backgroundColor: colors[index] }]]}>
+      {colors?.[index] ? <>
+        <Text style={[styles.metricValue, styles.coloredMetricText]}>{displayNumber(value, suffix)}</Text>
+        <Text style={[styles.metricLabel, styles.coloredMetricText]}>{label}</Text>
+      </> : <>
+        <Text style={styles.metricLabel}>{label}</Text>
+        <Text style={styles.metricValue}>{displayNumber(value, suffix)}</Text>
+      </>}
       {note && <Note>{note}</Note>}
     </View>
   ))}</View>;
 }
 
-export function DataTable({ headers, rows, empty = 'No records for this selection.', onSelectRow }) {
+export function DataTable({ headers, rows, empty = 'No records for this selection.', onSelectRow, headerColor, cellStyle }) {
   if (!Array.isArray(rows) || rows.some((row) => !Array.isArray(row))) return <Empty>Not available: the response is missing these records.</Empty>;
   if (!rows.length) return <Empty>{empty}</Empty>;
   return <ScrollView horizontal accessibilityLabel="Scrollable data table" style={{ maxWidth: '100%' }}>
     <View style={{ minWidth: headers.length * 128 }}>
-      <View style={styles.tableRow}>{headers.map((header) => <Text key={header} style={[styles.cell, styles.tableHeader]}>{header}</Text>)}</View>
+      <View style={styles.tableRow}>{headers.map((header) => <Text key={header} style={[styles.cell, styles.tableHeader, headerColor && { backgroundColor: headerColor, color: '#FFFFFF' }]}>{header}</Text>)}</View>
       {rows.map((row, i) => {
         const Row = onSelectRow ? Pressable : View;
         return <Row key={i} accessibilityRole={onSelectRow ? 'button' : undefined} onPress={onSelectRow ? () => onSelectRow(i) : undefined} style={styles.tableRow}>
-          {row.map((cell, j) => <Text key={j} style={styles.cell}>{typeof cell === 'string' || isNumber(cell) ? cell : 'Not available'}</Text>)}
+          {row.map((cell, j) => <Text key={j} style={[styles.cell, cellStyle?.(i, j)]}>{typeof cell === 'string' || isNumber(cell) ? cell : 'Not available'}</Text>)}
         </Row>;
       })}
     </View>
@@ -62,7 +67,7 @@ export function DataTable({ headers, rows, empty = 'No records for this selectio
 }
 
 // Every chart retains exact values as accessible text; colors are supplemental.
-export function SeriesChart({ rows, valueKey, labelKey = 'label', unit = 'tasks', kind = 'bar' }) {
+export function SeriesChart({ rows, valueKey, labelKey = 'label', unit = 'tasks', kind = 'bar', color, tableHeaderColor }) {
   const [width, setWidth] = useState(0);
   const [point, setPoint] = useState(null);
   if (!records(rows) || rows.some((row) => !isNumber(row[valueKey]) || typeof row[labelKey] !== 'string')) return <Empty>Not available: incomplete chart data.</Empty>;
@@ -72,12 +77,12 @@ export function SeriesChart({ rows, valueKey, labelKey = 'label', unit = 'tasks'
   return <View onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
     <Note>{unit}. Scroll horizontally for all labels; select a data row for details.</Note>
     {width > 0 && <ScrollView horizontal>
-      <Chart data={data} width={Math.max(width, rows.length * 90, 280)} height={220} chartConfig={baseChartConfig}
+      <Chart data={data} width={Math.max(width, rows.length * 90, 280)} height={220} chartConfig={color ? { ...baseChartConfig, color: (opacity = 1) => rgbaFromHex(color, opacity) } : baseChartConfig}
         fromZero yAxisLabel="" yAxisSuffix={unit === '%' ? '%' : ''} showValuesOnTopOfBars={kind === 'bar'}
         onDataPointClick={({ index, value }) => setPoint(`${rows[index][labelKey]}: ${displayNumber(value)} ${unit}`)} />
     </ScrollView>}
     {point && <Text accessibilityLiveRegion="polite" style={styles.note}>{point}</Text>}
-    <DataTable headers={['Period / name', unit]} rows={rows.map((row) => [row[labelKey], displayNumber(row[valueKey])])}
+    <DataTable headerColor={tableHeaderColor} headers={['Period / name', unit]} rows={rows.map((row) => [row[labelKey], displayNumber(row[valueKey])])}
       onSelectRow={(index) => setPoint(`${rows[index][labelKey]}: ${displayNumber(rows[index][valueKey])} ${unit}`)} />
   </View>;
 }
@@ -115,6 +120,7 @@ export const dashboardStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 16 },
   section: { backgroundColor: Colors.white, borderRadius: 12, padding: 16, gap: 12, borderWidth: 1, borderColor: Colors.borderGray },
+  bareSection: { gap: 12 },
   title: { fontSize: 18, fontWeight: '700', color: Colors.black },
   subtitle: { fontSize: 16, fontWeight: '600', marginTop: 16, color: Colors.black },
   note: { color: Colors.black, opacity: 0.7, fontSize: 12, lineHeight: 18 },
@@ -126,6 +132,8 @@ const styles = StyleSheet.create({
   metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   metric: { flexGrow: 1, flexBasis: 145, backgroundColor: Colors.frame, borderRadius: 12, padding: 16, gap: 8 },
   metricLabel: { fontSize: 13, color: Colors.black }, metricValue: { fontSize: 24, fontWeight: '700', color: Colors.primary },
+  coloredMetric: { flexBasis: '45%', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  coloredMetricText: { color: '#FFFFFF', textAlign: 'center' },
   tableRow: { flexDirection: 'row', minHeight: 44, borderBottomWidth: 1, borderColor: Colors.borderGray },
   cell: { width: 128, padding: 10, color: Colors.black, fontSize: 12 },
   tableHeader: { fontWeight: '700', backgroundColor: Colors.secondary },

@@ -34,19 +34,20 @@ export default function TeamLeadDashboardContent({ onRefresh }) {
     <DashboardFilters filters={filters} onChange={setFilters} />
     <Section title="Team overview — current" resource={performance} note="All current team tasks, independent of dates. On-time rate uses completion events with a deadline snapshot; the eligible completion count is shown separately.">
       <Metrics items={[
+        ['In Review', data?.inReviewTasks], ['Pending approval', data?.pendingApproval],
         ['Total tasks', counts?.total], ['In progress', counts?.inProgress], ['Completed', counts?.done],
         ['Overdue', data?.overdueCount], ['Completion rate', rateWithPopulation(data?.completionRate, counts?.total), '%'], ['On-time completion', rateWithPopulation(data?.onTimeRate, data?.onTimeEligibleTasks), '%', `${displayNumber(data?.onTimeEligibleTasks)} eligible completions`],
       ]} />
     </Section>
     <DashboardGrid>
       <Section title="Team task status — current" resource={performance}>
-        <Distribution rows={counts ? [{ _id: 'todo', count: counts.todo }, { _id: 'in_progress', count: counts.inProgress }, { _id: 'done', count: counts.done }] : null} />
+        <Distribution rows={counts ? [{ _id: 'todo', count: counts.todo }, { _id: 'in_progress', count: counts.inProgress }, { _id: 'in_review', count: counts.inReview }, { _id: 'done', count: counts.done }] : null} />
       </Section>
-      <Section title="Workload ranking — current" resource={performance} note="Descending open task count (To Do + In Progress), all dates. This is workload, not a diagnosis of overload. Shared assignments count for each assignee.">
+      <Section title="Workload ranking — current" resource={performance} note="Descending open task count (To Do + In Progress + In Review), all dates. This is workload, not a diagnosis of overload. Shared assignments count for each assignee.">
         <SeriesChart rows={workload} valueKey="openTasks" labelKey="userName" unit="open tasks" />
       </Section>
       <Section title="Member progress" resource={progress} note={`Tasks created ${filters.startDate} to ${filters.endDate}. On-time denominator: eligible completions with recorded completion and deadline snapshots.`}>
-        <DataTable headers={['Member', 'Total', 'To Do', 'In progress', 'Completed', 'Overdue', 'Complete %', 'On-time %', 'Eligible on-time']} rows={records(progress.data)?.map((row) => [row.userName, ...['totalTasks', 'todoTasks', 'inProgressTasks', 'completedTasks', 'overdueTasks'].map((key) => displayNumber(row[key])), displayNumber(rateWithPopulation(row.completionRate, row.totalTasks)), displayNumber(rateWithPopulation(row.onTimeRate, row.onTimeEligibleTasks)), displayNumber(row.onTimeEligibleTasks)])} />
+        <DataTable headers={['Member', 'Total', 'To Do', 'In progress', 'In Review', 'Completed', 'Overdue', 'Complete %', 'On-time %', 'Eligible on-time']} rows={records(progress.data)?.map((row) => [row.userName, ...['totalTasks', 'todoTasks', 'inProgressTasks', 'awaitingReviewTasks', 'completedTasks', 'overdueTasks'].map((key) => displayNumber(row[key])), displayNumber(rateWithPopulation(row.completionRate, row.totalTasks)), displayNumber(rateWithPopulation(row.onTimeRate, row.onTimeEligibleTasks)), displayNumber(row.onTimeEligibleTasks)])} />
       </Section>
       <Section title="Overdue tasks — current" resource={overdue} note={`Oldest deadline first. Total: ${displayNumber(overdue.data?.total)}. This list is paginated; it is not used to calculate team totals.`}>
         <DataTable headers={['Task', 'Deadline', 'Days overdue']} rows={records(overdue.data?.tasks)?.map((task) => [task.title, displayDate(task.dueDate), displayNumber(task.daysOverdue)])} />

@@ -42,12 +42,14 @@ export const baseChartConfig = {
 export const STATUS_COLORS = {
   todo: "#F59E0B",
   in_progress: "#3B82F6",
+  in_review: "#6941C6",
   done: "#10B981",
 };
 
 export const STATUS_LABELS = {
   todo: "To Do",
   in_progress: "In Progress",
+  in_review: "In Review",
   done: "Completed",
 };
 
