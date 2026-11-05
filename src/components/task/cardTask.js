@@ -1,3 +1,4 @@
+import { getTaskStatus } from '../../utils/taskStatusMap';
 import React from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import Mouse from "../../../assets/icons/mouse.svg";
@@ -16,19 +17,12 @@ const CardTask = ({
   flag, 
   bgColor,
   assignees = [],
-  description = ""
+  description = "",
+  onPress,
 }) => {
   const bgColors = bgColor;
 
-  const getStatusDisplay = (status) => {
-    const statusMap = {
-      'todo': { text: 'To Do', color: '#667085', bgColor: '#F2F4F7' },
-      'in_progress': { text: 'In Progress', color: '#0284C7', bgColor: '#E0F2FE' },
-      'done': { text: 'Done', color: '#16A34A', bgColor: '#DCFCE7' }
-    };
-    return statusMap[status] || statusMap['todo'];
-  };
-  
+  const getStatusDisplay = getTaskStatus;
   const getPriorityInfo = (priority) => {
     const priorityMap = {
       'high': { text: 'High', color: '#fe3b3bff'},
@@ -91,7 +85,7 @@ const CardTask = ({
             </Text>
           </View>
           <View style={styles.headerRight}>
-            <AppButton text="Details" />
+            <AppButton text="Details" onPress={onPress} />
           </View>
         </View>
         

@@ -311,7 +311,9 @@ const CreateTaskScreen = ({ navigation }) => {
     if (user?.role === 'hr_manager' && !selectedTeam?._id) return { valid: false, message: 'Team is required' };
     if (!startDate) return { valid: false, message: 'Start date is required' };
     if (!dueDate) return { valid: false, message: 'Due date is required' };
-    if (new Date(dueDate) < new Date(startDate)) return { valid: false, message: 'Due date cannot be earlier than start date' };
+    if (!isValidDate(startDate)) return { valid: false, message: 'Please select a valid start date' };
+    if (!isValidDate(dueDate)) return { valid: false, message: 'Please select a valid due date' };
+    if (dueDate.getTime() < startDate.getTime()) return { valid: false, message: 'Due date cannot be earlier than start date' };
     return { valid: true };
   };
 
@@ -325,37 +327,27 @@ const CreateTaskScreen = ({ navigation }) => {
   };
 
   const openCalendar = (field) => {
-    const dateStr = field === "start" ? startDate : dueDate;
-    let parsedDate = new Date();
-
-    if (dateStr) {
-      const parts = dateStr.split(' ');
-      if (parts.length === 3) {
-        const day = parseInt(parts[0], 10);
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-        const monthIndex = monthNames.findIndex(m => m.toLowerCase().startsWith(parts[1].toLowerCase()));
-        const year = parseInt(parts[2], 10);
-        if (!isNaN(day) && monthIndex >= 0 && !isNaN(year)) {
-          parsedDate = new Date(year, monthIndex, day);
-        }
-      }
-    }
-
-    setTempDate(parsedDate);
-    setCurrentMonth(new Date(parsedDate.getFullYear(), parsedDate.getMonth()));
+    const value = field === "start" ? startDate : dueDate;
+    const selectedDate = isValidDate(value) ? new Date(value.getTime()) : new Date();
+    setTempDate(selectedDate);
+    setCurrentMonth(new Date(selectedDate.getFullYear(), selectedDate.getMonth()));
     setDateField(field);
     setShowCalendarModal(true);
   };
 
   const confirmDate = () => {
-    if (tempDate && !isNaN(tempDate.getTime())) {
-      const formatted = tempDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-      if (dateField === "start") setStartDate(formatted);
-      else setDueDate(formatted);
-      setShowCalendarModal(false);
+    if (!isValidDate(tempDate)) {
+      Alert.alert("Invalid Date", "Please select a valid date");
+      return;
     }
+    // Keep the calendar value as a Date. Localized labels are for display only.
+    const selectedDate = new Date(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate());
+    if (dateField === "start") setStartDate(selectedDate);
+    else setDueDate(selectedDate);
+    setShowCalendarModal(false);
   };
 
+  const isValidDate = (date) => date instanceof Date && Number.isFinite(date.getTime());
   const formatDate = (date) => date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
   const getDaysInMonth = (date) => {
@@ -393,7 +385,7 @@ const CreateTaskScreen = ({ navigation }) => {
         <View style={styles.selectorLeft}>
           <CalendarIcon width={20} height={20} />
           <Text style={[styles.selectorText, !value && styles.placeholderText]}>
-            {value || "Select date"}
+            {isValidDate(value) ? formatDate(value) : "Select date"}
           </Text>
         </View>
         <ChevronDown width={20} height={20} />
@@ -478,6 +470,11 @@ const CreateTaskScreen = ({ navigation }) => {
 
   const handleConfirmCreateTask = async () => {
     setShowConfirmDialog(false);
+    const validation = validateTaskData();
+    if (!validation.valid) {
+      Alert.alert("Validation Error", validation.message);
+      return;
+    }
     setIsUploading(true);
   
     try {
@@ -491,8 +488,8 @@ const CreateTaskScreen = ({ navigation }) => {
         priority: selectedPriority?.id || "medium",
         difficulty: "medium",
         attachments: [],
-        ...(startDate ? { startDate: new Date(startDate).toISOString() } : {}),
-        ...(dueDate ? { dueDate: new Date(dueDate).toISOString() } : {}),
+        startDate: startDate.toISOString(),
+        dueDate: dueDate.toISOString(),
       };
   
       const createResponse = await createTask(taskPayload);
