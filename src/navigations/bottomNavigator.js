@@ -56,17 +56,17 @@ const BottomNavigator = () => {
                     ),
                 }}
             />
-            {user?.role !== "hr_manager" && (
-                <Bottom.Screen
+            <Bottom.Screen
                 name="clockin"
                 component={ClockinScreen}
                 options={{
+                    title: "Attendance",
+                    tabBarAccessibilityLabel: "Clock in / Clock out",
                     tabBarIcon: ({ focused }) => (
                         focused ? <CalendarAc width={28} height={28} /> : <CalendarInac width={28} height={28} />
                     ),
                 }}
             />
-            )}
             <Bottom.Screen
                 name="task"
                 component={TaskNavigator}

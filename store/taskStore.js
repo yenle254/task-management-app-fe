@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { taskReviewActions, reviewInitialState } from './taskReviewActions';
 import taskService from '../src/services/taskService';
 
 const defaultFilters = () => ({ status: null, priority: null, teamId: null, search: '',
@@ -29,11 +30,12 @@ const advancedActions = (set, get) => {
   });
   Object.entries({ getBoard: 'taskBoard', getCalendar: 'calendarTasks', getTimeline: 'timelineTasks', getTaskHistory: 'taskHistory' }).forEach(([name, key]) => {
     actions[name] = async (...args) => {
+      if (name === 'getBoard') set({ boardQuery: args[0] || {} });
       const sessionVersion = get().sessionVersion;
       const requestId = (readRequests[key] || 0) + 1;
       const current = () => get().sessionVersion === sessionVersion && readRequests[key] === requestId;
       readRequests[key] = requestId;
-      set({ error: null, [key]: key === 'taskBoard' ? { todo: [], in_progress: [], done: [] } : [] });
+      set({ error: null, [key]: key === 'taskBoard' ? { todo: [], in_progress: [], in_review: [], done: [] } : [] });
       try {
         const response = await taskService[name](...args);
         if (current()) set({ [key]: response.data });
@@ -46,7 +48,9 @@ const advancedActions = (set, get) => {
 
 const useTaskStore = create((set, get) => ({
   ...advancedActions(set, get),
-  taskBoard: { todo: [], in_progress: [], done: [] }, calendarTasks: [], timelineTasks: [], taskHistory: [],
+  ...reviewInitialState, ...taskReviewActions(set, get),
+  boardQuery: null, lastListQuery: null,
+  taskBoard: { todo: [], in_progress: [], in_review: [], done: [] }, calendarTasks: [], timelineTasks: [], taskHistory: [],
   advancedLoading: false, listLoading: false, page: 1, pages: 0, total: 0, hasMore: false,
   listRequestId: 0, detailRequestId: 0, sessionVersion: 0,
   syncTask: updated => set(state => ({
@@ -57,6 +61,7 @@ const useTaskStore = create((set, get) => ({
   })),
   fetchTaskPage: async (scope, params = {}) => {
     const filters = { ...get().filters, ...params };
+    set({ lastListQuery: { scope, params: filters } });
     const requestId = get().listRequestId + 1;
     set({ listRequestId: requestId, listLoading: true, error: null,
       ...(Number(filters.page) === 1 ? { [scope === 'my' ? 'myTasks' : 'tasks']: [], page: 1, total: 0, hasMore: false } : {}) });
@@ -492,7 +497,7 @@ const useTaskStore = create((set, get) => ({
   resetFilters: () => {
     set({
       filters: defaultFilters(), listLoading: false, page: 1, pages: 0, total: 0, hasMore: false, listRequestId: get().listRequestId + 1,
-      taskBoard: { todo: [], in_progress: [], done: [] }, calendarTasks: [], timelineTasks: [], taskHistory: []
+      taskBoard: { todo: [], in_progress: [], in_review: [], done: [] }, calendarTasks: [], timelineTasks: [], taskHistory: []
     });
   },
 
@@ -523,6 +528,7 @@ const useTaskStore = create((set, get) => ({
    */
   reset: () => {
     set({
+      ...reviewInitialState, boardQuery: null, lastListQuery: null,
       sessionVersion: get().sessionVersion + 1, detailRequestId: get().detailRequestId + 1, advancedLoading: false,
       tasks: [],
       myTasks: [],
@@ -532,7 +538,7 @@ const useTaskStore = create((set, get) => ({
       isLoading: false,
       error: null,
       filters: defaultFilters(), listLoading: false, page: 1, pages: 0, total: 0, hasMore: false, listRequestId: get().listRequestId + 1,
-      taskBoard: { todo: [], in_progress: [], done: [] }, calendarTasks: [], timelineTasks: [], taskHistory: []
+      taskBoard: { todo: [], in_progress: [], in_review: [], done: [] }, calendarTasks: [], timelineTasks: [], taskHistory: []
     });
   },
 
