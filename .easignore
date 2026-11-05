@@ -1,0 +1,71 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+app-example
+
+prompt.txt
+
+# generated native folders
+/ios
+/android
+src\config\api.config.js
+
+# Claude Code memory and reports
+MEMORY.md
+*.memory.md
+*.report.md
+BAO_CAO_*.md
+REPORT_*.md
+*.md
+*.txt
+!CLAUDE.md
+!README.md
+!CHANGELOG.md
+
+# Local environment and credentials must not be uploaded to EAS
+.env
+.env.*
+**/.env
+**/.env.*
+**/*firebase-adminsdk*.json
+credentials.json
+.git/
+
+# Required client configuration for Android builds
+!src/config/api.config.js
+!google-services.json
