@@ -36,7 +36,7 @@ const AdminDashboardScreen = ({ navigation }) => {
       >
         <HeaderPromo
           text="System Administration"
-          subtext="Manage HR accounts and system settings"
+          subtext="Manage HR accounts and review activity"
           color="#DC2626"
         />
 
@@ -72,16 +72,16 @@ const AdminDashboardScreen = ({ navigation }) => {
 
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => {}}
+              onPress={() => navigation.navigate('AuditLog')}
               activeOpacity={0.7}
             >
               <View style={styles.menuIconContainer}>
                 <Feather name="shield" size={24} color={Colors.primary} />
               </View>
               <View style={styles.menuInfo}>
-                <Text style={styles.menuTitle}>System Settings</Text>
+                <Text style={styles.menuTitle}>Audit Log</Text>
                 <Text style={styles.menuSubtitle}>
-                  Configure system-wide settings
+                  Review activity and reasons for changes
                 </Text>
               </View>
               <View style={styles.menuArrow}>
