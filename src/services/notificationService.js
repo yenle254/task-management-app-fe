@@ -1,6 +1,8 @@
 import apiClient from './api';
 
 const notificationService = {
+  getPreferences: () => apiClient.get('/notifications/preferences'),
+  updatePreferences: patch => apiClient.put('/notifications/preferences', patch),
   /**
    * Get all notifications
    * @param {Object} params - {page, limit, unreadOnly}

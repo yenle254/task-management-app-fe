@@ -61,6 +61,9 @@ class SocketService {
   }
 
   setupDefaultListeners() {
+    for (const [event, callbacks] of this.listeners) {
+      callbacks.forEach(callback => this.socket.on(event, callback));
+    }
     this.socket.on('disconnect', (reason) => {
       console.log('Socket disconnected:', reason);
       this.connected = false;
@@ -140,28 +143,24 @@ class SocketService {
     }
   }
 
+  onNotificationCreated(callback) {
+    this.on('notification_created', callback);
+    return () => this.off('notification_created', callback);
+  }
+
   // Event listeners
   on(event, callback) {
-    if (!this.socket) {
-      console.warn('Socket not initialized');
-      return;
-    }
-
-    // Store the callback
+    // Store callbacks before connect so auth-ready notifications are not lost.
     if (!this.listeners.has(event)) {
       this.listeners.set(event, []);
     }
     this.listeners.get(event).push(callback);
 
     // Add listener to socket
-    this.socket.on(event, callback);
+    this.socket?.on(event, callback);
   }
 
   off(event, callback) {
-    if (!this.socket) {
-      return;
-    }
-
     // Remove from stored listeners
     if (this.listeners.has(event)) {
       const callbacks = this.listeners.get(event);
@@ -175,7 +174,7 @@ class SocketService {
     }
 
     // Remove from socket
-    this.socket.off(event, callback);
+    this.socket?.off(event, callback);
   }
 
   // Remove all listeners for an event

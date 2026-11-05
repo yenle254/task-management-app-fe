@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import notificationService from '../src/services/notificationService';
 
+let notificationGeneration = 0;
+let notificationRevision = 0;
+let listRequest = 0;
+
 const useNotificationStore = create((set, get) => ({
   // States
   notifications: [],
@@ -26,6 +30,7 @@ const useNotificationStore = create((set, get) => ({
    * Fetch all notifications
    */
   fetchNotifications: async (params = {}) => {
+    const session = notificationGeneration, request = ++listRequest, revision = notificationRevision;
     set({ isLoading: true, error: null });
     try {
       const queryParams = {
@@ -36,13 +41,13 @@ const useNotificationStore = create((set, get) => ({
       
       const response = await notificationService.getNotifications(queryParams);
       
+      if (session !== notificationGeneration || request !== listRequest) return response;
       const newNotifications = response.data || [];
       const isFirstPage = queryParams.page === 1;
       
       set(state => ({
-        notifications: isFirstPage 
-          ? newNotifications 
-          : [...state.notifications, ...newNotifications],
+        notifications: [...new Map((isFirstPage && revision === notificationRevision
+          ? newNotifications : [...state.notifications, ...newNotifications]).map(item => [item._id, item])).values()],
         pagination: {
           ...state.pagination,
           page: queryParams.page,
@@ -53,6 +58,7 @@ const useNotificationStore = create((set, get) => ({
       
       return response;
     } catch (error) {
+      if (session !== notificationGeneration || request !== listRequest) return;
       set({ 
         error: error?.error || 'Failed to fetch notifications',
         isLoading: false 
@@ -66,6 +72,7 @@ const useNotificationStore = create((set, get) => ({
    * Backend response: { success: true, data: { unreadCount: number } }
    */
   fetchUnreadCount: async () => {
+    const session = notificationGeneration, revision = notificationRevision;
     const { isFetchingUnread, unreadCooldownUntil } = get();
     const now = Date.now();
 
@@ -84,6 +91,8 @@ const useNotificationStore = create((set, get) => ({
     try {
       const response = await notificationService.getUnreadCount();
 
+      if (session !== notificationGeneration) return;
+      if (revision !== notificationRevision) { set({ isFetchingUnread: false }); return; }
       // Backend trả về: response.data.unreadCount
       const count = response.data?.unreadCount || 0;
 
@@ -95,6 +104,7 @@ const useNotificationStore = create((set, get) => ({
 
       return response;
     } catch (error) {
+      if (session !== notificationGeneration) return;
       // Check if it's a 429 error
       if (error?.error?.includes('Too many requests') ||
           error?.retryAfter ||
@@ -127,6 +137,8 @@ const useNotificationStore = create((set, get) => ({
    * Mark notification as read
    */
   markAsRead: async (notificationId) => {
+    const session = notificationGeneration;
+    notificationRevision++;
     const oldNotifications = get().notifications;
     const oldUnreadCount = get().unreadCount;
     
@@ -147,6 +159,7 @@ const useNotificationStore = create((set, get) => ({
       const response = await notificationService.markAsRead(notificationId);
       return response;
     } catch (error) {
+      if (session !== notificationGeneration) return;
       // Rollback
       set({ 
         notifications: oldNotifications,
@@ -161,6 +174,8 @@ const useNotificationStore = create((set, get) => ({
    * Mark all notifications as read
    */
   markAllAsRead: async () => {
+    const session = notificationGeneration;
+    notificationRevision++;
     const oldNotifications = get().notifications;
     const oldUnreadCount = get().unreadCount;
     
@@ -177,6 +192,7 @@ const useNotificationStore = create((set, get) => ({
       const response = await notificationService.markAllAsRead();
       return response;
     } catch (error) {
+      if (session !== notificationGeneration) return;
       // Rollback
       set({ 
         notifications: oldNotifications,
@@ -191,6 +207,8 @@ const useNotificationStore = create((set, get) => ({
    * Delete notification
    */
   deleteNotification: async (notificationId) => {
+    const session = notificationGeneration;
+    notificationRevision++;
     const oldNotifications = get().notifications;
     const oldUnreadCount = get().unreadCount;
     
@@ -211,6 +229,7 @@ const useNotificationStore = create((set, get) => ({
       const response = await notificationService.deleteNotification(notificationId);
       return response;
     } catch (error) {
+      if (session !== notificationGeneration) return;
       // Rollback
       set({ 
         notifications: oldNotifications,
@@ -225,6 +244,8 @@ const useNotificationStore = create((set, get) => ({
    * Delete all notifications
    */
   deleteAllNotifications: async () => {
+    const session = notificationGeneration;
+    notificationRevision++;
     const oldNotifications = get().notifications;
     const oldUnreadCount = get().unreadCount;
     
@@ -238,6 +259,7 @@ const useNotificationStore = create((set, get) => ({
       const response = await notificationService.deleteAllNotifications();
       return response;
     } catch (error) {
+      if (session !== notificationGeneration) return;
       // Rollback
       set({ 
         notifications: oldNotifications,
@@ -309,13 +331,17 @@ const useNotificationStore = create((set, get) => ({
   /**
    * Add new notification (for real-time updates)
    */
+  handleRealtimeNotification: notification => get().addNotification(notification),
   addNotification: (notification) => {
+    if (!notification?._id || get().notifications.some(item => item._id === notification._id)) return false;
+    notificationRevision++;
     set(state => ({
       notifications: [notification, ...state.notifications],
       unreadCount: !notification.isRead 
         ? state.unreadCount + 1 
         : state.unreadCount
     }));
+    return true;
   },
 
   /**
@@ -363,6 +389,8 @@ const useNotificationStore = create((set, get) => ({
    * Reset store
    */
   reset: () => {
+    notificationGeneration++; notificationRevision++; listRequest++;
+    set({ isFetchingUnread: false, unreadCooldownUntil: null });
     get().stopAutoRefresh();
     
     set({
