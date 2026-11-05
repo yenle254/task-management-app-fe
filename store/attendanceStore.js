@@ -224,7 +224,7 @@ const useAttendanceStore = create((set, get) => ({
    */
   isClockedInToday: () => {
     const today = get().todayAttendance;
-    return today && today.clockIn && (!today.clockOut || today.clockOut === null);
+    return Boolean(today?.clockIn && !today.clockOut);
   },
 
   /**
@@ -233,7 +233,7 @@ const useAttendanceStore = create((set, get) => ({
   isClockedOutToday: () => {
     const today = get().todayAttendance;
     // Check if has both clockIn and clockOut
-    return today && today.clockIn && today.clockOut && today.clockOut !== null;
+    return Boolean(today?.clockIn && today.clockOut);
   },
 
   /**
