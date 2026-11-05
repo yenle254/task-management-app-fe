@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNotificationStore } from '../../store/index';
 import UserHeader from '../components/home/userHeader';
 import HRDashboardContent from '../components/home/hrDashboardContent';
-import EmployeeDashboardContent from '../components/home/dashboard/employeeDashboardContent';
+import EmployeeHomeContent from '../components/home/employeeHomeContent';
 import TeamLeadDashboardContent from '../components/home/dashboard/teamLeadDashboardContent';
 import { useAuth } from '../contexts/authContext';
 import Colors from '../styles/color';
@@ -32,7 +32,7 @@ const HomeScreen = ({ navigation }) => {
     finally { setRefreshing(false); }
   };
 
-  const Dashboard = { employee: EmployeeDashboardContent, team_lead: TeamLeadDashboardContent, hr_manager: HRDashboardContent }[user?.role];
+  const Dashboard = { employee: EmployeeHomeContent, team_lead: TeamLeadDashboardContent, hr_manager: HRDashboardContent }[user?.role];
   const teamId = typeof user?.teamId === 'object' ? user.teamId?._id : user?.teamId;
   return <SafeAreaView style={styles.container}>
     <StatusBar backgroundColor={Colors.white} barStyle="dark-content" />
