@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "742308269146",
+    "project_id": "doantotnghiep-7dab2",
+    "storage_bucket": "doantotnghiep-7dab2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:742308269146:android:bc77eaddb7c87620591c63",
+        "android_client_info": {
+          "package_name": "com.anonymous.project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAT9IyOSAu7iG8E7XeaNSRttg_6khm7GaA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
