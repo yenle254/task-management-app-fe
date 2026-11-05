@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import messageService from '../src/services/messageService';
 
+let unreadGeneration = 0;
+
 /**
  * Message Store
  * Manages conversations and messages
@@ -10,6 +12,8 @@ const useMessageStore = create((set, get) => ({
   messages: {}, // { conversationId: [messages] }
   currentConversation: null,
   unreadCount: 0,
+  isFetchingUnread: false,
+  unreadCooldownUntil: 0,
   isLoading: false,
   error: null,
 
@@ -190,12 +194,27 @@ const useMessageStore = create((set, get) => ({
    * Fetch total unread count
    */
   fetchUnreadCount: async () => {
+    const session = unreadGeneration;
+    if (get().isFetchingUnread || Date.now() < get().unreadCooldownUntil) return;
+    set({ isFetchingUnread: true });
     try {
       const response = await messageService.getUnreadCount();
+      if (session !== unreadGeneration) return;
       set({ unreadCount: response.data?.unreadCount || 0 });
       return response;
     } catch (error) {
-      console.error('Failed to fetch unread count:', error);
+      if (session !== unreadGeneration) return;
+      const body = error?.response?.data || error;
+      if (error?.response?.status === 429 || body?.retryAfter != null ||
+          (typeof body?.error === 'string' && body.error.includes('Too many requests'))) {
+        const seconds = Number(body?.retryAfter);
+        const retrySeconds = Number.isFinite(seconds) && seconds > 0 ? seconds : 900;
+        set({ unreadCooldownUntil: Date.now() + retrySeconds * 1000 });
+      } else {
+        console.error('Failed to fetch unread count:', error);
+      }
+    } finally {
+      if (session === unreadGeneration) set({ isFetchingUnread: false });
     }
   },
 
@@ -258,14 +277,19 @@ const useMessageStore = create((set, get) => ({
   /**
    * Reset store
    */
-  reset: () => set({
+  reset: () => {
+    unreadGeneration++;
+    set({
     conversations: [],
     messages: {},
     currentConversation: null,
     unreadCount: 0,
+    isFetchingUnread: false,
+    unreadCooldownUntil: 0,
     isLoading: false,
     error: null
-  })
+    });
+  }
 }));
 
 export default useMessageStore;
