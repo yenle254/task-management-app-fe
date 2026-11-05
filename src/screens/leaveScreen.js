@@ -412,7 +412,8 @@ const LeaveScreen = ({ navigation }) => {
         }}
       >
         <View style={styles.modalContainer}>
-          <ScrollView style={[styles.modalContent, { maxHeight: "85%", maxWidth: 640 }]} contentContainerStyle={{ paddingBottom: 20 }}>
+          <View style={styles.modalContent}>
+          <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalScrollContent}>
             {selectedLeave && (
               <>
                 <Text style={styles.modalTitle}>Leave Details</Text>
@@ -496,6 +497,10 @@ const LeaveScreen = ({ navigation }) => {
 
                 <LeaveWorkflowDetails leave={selectedLeave} user={user} navigation={navigation}
                   onChanged={loadData} onClose={() => { setModalVisible(false); setSelectedLeave(null); }} />
+              </>
+            )}
+          </ScrollView>
+          <View style={styles.modalFooter}>
                 <AppButton
                   text="Close"
                   onPress={() => {
@@ -505,9 +510,8 @@ const LeaveScreen = ({ navigation }) => {
                   style={styles.closeButton}
                   textStyle={styles.closeButtonText}
                 />
-              </>
-            )}
-          </ScrollView>
+          </View>
+          </View>
         </View>
       </Modal>
     </View>
@@ -551,9 +555,10 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: "90%",
+    maxHeight: "85%",
+    maxWidth: 640,
     backgroundColor: "white",
     borderRadius: 10,
-    padding: 20,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -562,6 +567,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
+  },
+  modalScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+    minHeight: 0,
+  },
+  modalScrollContent: {
+    padding: 20,
+  },
+  modalFooter: {
+    flexShrink: 0,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 20,
   },
   modalTitle: {
     fontSize: 18,
@@ -573,9 +592,10 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   closeButton: {
-    marginTop: 15,
-    width: "90%",
-    height: 40,
+    width: "100%",
+    height: "auto",
+    minHeight: 44,
+    paddingVertical: 12,
     borderRadius: 20,
     backgroundColor: Colors.primary,
   },

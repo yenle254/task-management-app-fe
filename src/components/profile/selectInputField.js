@@ -11,11 +11,15 @@ const SelectInputField = ({
   Icon,
   iconProps = { width: 20, height: 20 },
   style,
+  accessibilityLabel,
+  accessibilityState,
 }) => {
   return (
     <View style={[styles.container, style]}>
       <Text style={styles.label}>{label}</Text>
-      <Pressable onPress={onPress} style={styles.selector}>
+      <Pressable onPress={onPress} style={styles.selector} accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel || label} accessibilityState={accessibilityState}
+        aria-expanded={accessibilityState?.expanded}>
         <View style={styles.selectorLeft}>
           {Icon && <Icon {...iconProps} />}
           <Text style={[styles.selectorText, !value && styles.placeholderText]}>

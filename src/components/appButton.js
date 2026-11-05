@@ -4,12 +4,13 @@ import Colors from "../styles/color";
 
 const AppButton = ({ text, onPress, style, textStyle, disabled = false }) => {
     const defaultBackgroundColor = Colors.button;
+    const isDisabled = Boolean(disabled);
 
     return (
         <Pressable
-            disabled={disabled}
+            disabled={isDisabled}
             accessibilityRole="button"
-            accessibilityState={{ disabled }}
+            accessibilityState={{ disabled: isDisabled }}
             onPress={onPress} 
             style={({ pressed }) => [
                 styles.btnBase,
