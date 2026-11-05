@@ -1,34 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView, Alert, ActivityIndicator, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import MapView, { Circle, Marker } from "react-native-maps";
+import AttendanceMap from "../components/attendanceMap";
 import Colors from "../styles/color";
 import Avatar from "../components/avatar";
 import HeaderWithBackButton from "../components/headerWithBackButton";
 import { getCurrentLocation } from "../utils/locationServices";
+import officeService from "../services/officeService";
 import { useAttendanceStore } from "../../store";
 import { useAuth } from "../contexts/authContext";
 
-const { width, height } = Dimensions.get("window");
-
-const CLOCK_IN_AREA = {
-  latitude: 10.870325,
-  longitude: 106.803575,
-  radius: 200,
-};
-
-const ALLOWED_AREA = {
-  latMin: 10.869093,
-  latMax: 10.871556,
-  lngMin: 106.802012,
-  lngMax: 106.805138
-};
-
-
-const validateLocation = (lat, lng) => {
-  return lat >= ALLOWED_AREA.latMin && lat <= ALLOWED_AREA.latMax &&
-         lng >= ALLOWED_AREA.lngMin && lng <= ALLOWED_AREA.lngMax;
-};
+const { height } = Dimensions.get("window");
 
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371e3;
@@ -47,36 +29,60 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
 
 const ClockInAreaScreen = ({ navigation }) => {
   const [userLocation, setUserLocation] = useState(null);
+  const [officeArea, setOfficeArea] = useState(null);
   const [isInArea, setIsInArea] = useState(false);
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
-  const [distance, setDistance] = useState(null);
+  const [officeError, setOfficeError] = useState(false);
+  const [officeAttempt, setOfficeAttempt] = useState(0);
 
-  const { clockIn, clockOut, isLoading } = useAttendanceStore();
+  const { clockIn, isLoading } = useAttendanceStore();
   const { user } = useAuth();
 
-  const avatarUrl = user.profile?.avatar || null;
+  const avatarUrl = user?.profile?.avatar || null;
+  const displayName = user?.profile?.fullName || user?.email || user?.username || "User";
 
   useEffect(() => {
-    getUserLocation();
-  }, []);
+    let mounted = true;
+    setOfficeError(false);
+    setIsLoadingLocation(true);
+    officeService.getActiveOffice()
+      .then((response) => {
+        const office = response?.data;
+        const latitude = Number(office?.location?.lat);
+        const longitude = Number(office?.location?.lng);
+        const radius = Number(office?.radius);
+        if (office?.location?.lat == null || office?.location?.lng == null ||
+          !Number.isFinite(latitude) || Math.abs(latitude) > 90 ||
+          !Number.isFinite(longitude) || Math.abs(longitude) > 180 || !Number.isFinite(radius) || radius <= 0) {
+          throw new Error('Invalid active office location');
+        }
+        if (mounted) {
+          setOfficeArea({ latitude, longitude, radius });
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setOfficeError(true);
+          setIsLoadingLocation(false);
+        }
+      });
+    return () => { mounted = false; };
+  }, [officeAttempt]);
 
-  const getUserLocation = async () => {
+  const getUserLocation = useCallback(async () => {
+    if (userLocation) return; // avoid re-fetch on re-mount/re-render
     try {
       setIsLoadingLocation(true);
       const location = await getCurrentLocation();
       
       if (location) {
         setUserLocation(location);
-        const isValid = validateLocation(location.latitude, location.longitude);
-        
-        const dist = calculateDistance(
+        const isValid = officeArea && calculateDistance(
           location.latitude,
           location.longitude,
-          CLOCK_IN_AREA.latitude,
-          CLOCK_IN_AREA.longitude
-        );
-        
-        setDistance(Math.round(dist));
+          officeArea.latitude,
+          officeArea.longitude
+        ) <= officeArea.radius;
         setIsInArea(isValid);
       } else {
         Alert.alert("Error", "Unable to get your location. Please try again.");
@@ -87,7 +93,11 @@ const ClockInAreaScreen = ({ navigation }) => {
     } finally {
       setIsLoadingLocation(false);
     }
-  };
+  }, [officeArea, userLocation]);
+
+  useEffect(() => {
+    if (officeArea) getUserLocation();
+  }, [officeArea, getUserLocation]);
 
   const handleClockIn = async () => {
     if (!isInArea) {
@@ -133,7 +143,7 @@ const ClockInAreaScreen = ({ navigation }) => {
     year: 'numeric' 
   });
 
-  const locationString = userLocation 
+  const locationString = userLocation
     ? `Lat ${userLocation.latitude.toFixed(4)} Long ${userLocation.longitude.toFixed(4)}`
     : "Getting location...";
 
@@ -142,79 +152,61 @@ const ClockInAreaScreen = ({ navigation }) => {
       <HeaderWithBackButton title="Clock In Area" onBackPress={() => navigation.goBack()} />
       <ScrollView style={styles.containerWrapper}>
       <View style={styles.mapContainer}>
-        {isLoadingLocation ? (
+        {isLoadingLocation && (
           <View style={styles.loadingMap}>
             <ActivityIndicator size="large" color={Colors.primary} />
             <Text style={styles.loadingText}>Getting your location...</Text>
           </View>
-        ) : (
-          <MapView
-            style={styles.map}
-            initialRegion={{
-              latitude: userLocation?.latitude || CLOCK_IN_AREA.latitude,
-              longitude: userLocation?.longitude || CLOCK_IN_AREA.longitude,
-              latitudeDelta: 0.005,
-              longitudeDelta: 0.005,
-            }}
-          >
-            <Circle
-              center={{
-                latitude: CLOCK_IN_AREA.latitude,
-                longitude: CLOCK_IN_AREA.longitude,
-              }}
-              radius={CLOCK_IN_AREA.radius}
-              fillColor="rgba(147, 112, 255, 0.2)"
-              strokeColor="rgba(147, 112, 255, 0.5)"
-              strokeWidth={2}
-            />
-
-            {userLocation && (
-              <Marker
-                coordinate={{
-                  latitude: userLocation.latitude,
-                  longitude: userLocation.longitude,
-                }}
-              >
-                <View style={styles.userMarker}>
-                  <View style={styles.userMarkerInner} />
-                </View>
-              </Marker>
-            )}
-          </MapView>
         )}
 
-        {!isLoadingLocation && (
+        {!isLoadingLocation && userLocation && (
+          <AttendanceMap location={userLocation} office={officeArea} />
+        )}
+
+        {!isLoadingLocation && !userLocation && (
+          <View style={styles.locationFailed}>
+            <Text style={styles.locationFailedText}>
+              {officeError ? "Unable to load the active office location. Please try again." : "Could not fetch your location. Check GPS settings and try again."}
+            </Text>
+            <TouchableOpacity
+              style={[styles.retryButton, { height: 44, borderRadius: 22 }]}
+              onPress={() => officeError ? setOfficeAttempt(value => value + 1) : getUserLocation()}
+            >
+              <Text style={{ color: "#fff", fontWeight: "700" }}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+      </View>
+        {!isLoadingLocation && userLocation && (
           <View style={[
             styles.notification,
             !isInArea && styles.notificationError
           ]}>
             <View style={styles.notificationContent}>
               <Text style={styles.notificationTitle}>
-                {isInArea 
-                  ? "You are in the clock-in area!" 
+                {isInArea
+                  ? "You are in the clock-in area!"
                   : "You are outside the clock-in area"
                 }
               </Text>
               <Text style={styles.notificationSubtitle}>
-                {isInArea 
-                  ? "Now you can clock in" 
+                {isInArea
+                  ? "Now you can clock in"
                   : "Please move to the office location"
                 }
               </Text>
             </View>
           </View>
         )}
-      </View>
-
-
       <View style={styles.content}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>MY PROFILE</Text>
           <View style={styles.profileCard}>
-            <Avatar url={avatarUrl} name={user._id} width={60} height={60} />
+            <Avatar url={avatarUrl} name={displayName} width={60} height={60} />
             <View style={styles.profileInfo}>
               <View style={styles.profileRow}>
-                <Text style={styles.profileName}>{user?.profile?.fullName || user?.email}</Text>
+                <Text style={styles.profileName}>{displayName}</Text>
               </View>
               <Text style={styles.profileDate}>{currentDate}</Text>
               <View style={styles.locationRow}>
@@ -289,9 +281,6 @@ const styles = StyleSheet.create({
     height: height * 0.4,
     position: "relative",
   },
-  map: {
-    flex: 1,
-  },
   loadingMap: {
     flex: 1,
     alignItems: 'center',
@@ -303,27 +292,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666666',
   },
-  userMarker: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "rgba(147, 112, 255, 0.3)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  userMarkerInner: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.primary,
-    borderWidth: 4,
-    borderColor: "#FFFFFF",
-  },
   notification: {
-    position: "absolute",
-    bottom: 20,
-    left: 16,
-    right: 16,
+    marginHorizontal: 16,
+    marginTop: 12,
     backgroundColor: Colors.primary,
     borderRadius: 16,
     padding: 16,
@@ -404,9 +375,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  locationText: {
-    fontSize: 12,
-    color: "#999999",
+  locationFailed: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F5F5F5",
+    paddingHorizontal: 24,
+  },
+  locationFailedText: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  retryButton: {
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
   },
   scheduleCard: {
     backgroundColor: Colors.white,
