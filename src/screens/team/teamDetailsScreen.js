@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import HeaderWithBackButton from "../../components/headerWithBackButton";
 import Colors from "../../styles/color";
-import { useTeamStore } from "../../../store";
+import { useTeamStore, useUserStore } from "../../../store";
 import { useAuth } from "../../contexts/authContext";
 import { MemberCard, TeamInfoCard } from "../../components/team";
 
@@ -26,6 +26,7 @@ const TeamDetailsScreen = ({ navigation, route }) => {
     clearError,
     error,
   } = useTeamStore();
+  const { updateUser } = useUserStore();
 
   const [members, setMembers] = useState([]);
 
@@ -72,6 +73,36 @@ const TeamDetailsScreen = ({ navigation, route }) => {
               await loadTeamDetails();
             } catch (error) {
               Alert.alert("Error", "Failed to remove member");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleChangeRole = (member) => {
+    const nextRole = member.role === "team_lead" ? "employee" : "team_lead";
+    const nextRoleLabel = nextRole === "team_lead" ? "Team Lead" : "Employee";
+
+    Alert.alert(
+      "Change Role",
+      `Change ${
+        member.profile?.fullName || member.email
+      }'s role to ${nextRoleLabel}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm",
+          onPress: async () => {
+            try {
+              await updateUser(member._id, { role: nextRole });
+              Alert.alert("Success", `Role updated to ${nextRoleLabel}`);
+              await loadTeamDetails();
+            } catch (err) {
+              Alert.alert(
+                "Error",
+                err?.error || "Failed to update member role"
+              );
             }
           },
         },
@@ -143,6 +174,8 @@ const TeamDetailsScreen = ({ navigation, route }) => {
                 isLeader={member._id === currentTeam.leaderId?._id}
                 onRemove={handleRemoveMember}
                 canRemove={canManage}
+                onChangeRole={handleChangeRole}
+                canChangeRole={isHR}
               />
             ))}
           </View>

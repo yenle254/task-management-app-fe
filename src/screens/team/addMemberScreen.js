@@ -13,10 +13,14 @@ import useUserStore from "../../../store/userStore";
 import AppButton from "../../components/appButton";
 import HeaderWithBackButton from "../../components/headerWithBackButton";
 import { SearchBar, UserCard } from "../../components/team";
+import { useAuth } from "../../contexts/authContext";
 import Colors from "../../styles/color";
 
 const AddMemberScreen = ({ navigation, route }) => {
   const { teamId } = route.params;
+  const { user: currentUser } = useAuth();
+  const isHR = currentUser?.role === "hr_manager";
+
   const {
     currentTeam,
     addMember,
@@ -27,6 +31,7 @@ const AddMemberScreen = ({ navigation, route }) => {
   const {
     users,
     fetchUsers,
+    updateUser,
     isLoading: userLoading,
     isLoadingMore,
     pagination,
@@ -110,6 +115,40 @@ const AddMemberScreen = ({ navigation, route }) => {
     });
   }, []);
 
+  const handleChangeRole = useCallback(
+    (targetUser) => {
+      const nextRole =
+        targetUser.role === "team_lead" ? "employee" : "team_lead";
+      const nextRoleLabel =
+        nextRole === "team_lead" ? "Team Lead" : "Employee";
+
+      Alert.alert(
+        "Change Role",
+        `Change ${
+          targetUser.profile?.fullName || targetUser.email
+        }'s role to ${nextRoleLabel}?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Confirm",
+            onPress: async () => {
+              try {
+                await updateUser(targetUser._id, { role: nextRole });
+                Alert.alert("Success", `Role updated to ${nextRoleLabel}`);
+              } catch (err) {
+                Alert.alert(
+                  "Error",
+                  err?.error || "Failed to update user role"
+                );
+              }
+            },
+          },
+        ]
+      );
+    },
+    [updateUser]
+  );
+
   const isUserSelected = (userId) => {
     return selectedUsers.some((u) => u._id === userId);
   };
@@ -181,10 +220,12 @@ const AddMemberScreen = ({ navigation, route }) => {
           onToggle={handleToggleUser}
           isAlreadyMember={isUserAlreadyMember(item._id)}
           disabledReason={disabledReason}
+          canChangeRole={isHR}
+          onChangeRole={handleChangeRole}
         />
       );
     },
-    [selectedUsers, currentTeam, teamId]
+    [selectedUsers, currentTeam, teamId, isHR, handleChangeRole]
   );
 
   if (isInitializing) {
