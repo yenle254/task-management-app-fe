@@ -17,6 +17,7 @@ import AddSubtaskInput from "../../components/task/addSubtaskInput";
 import SubtaskProgress from "../../components/task/subtaskProgress";
 import AttachmentList from "../../components/task/attachmentList";
 import TaskAdvancedSections from "../../components/task/taskAdvancedSections";
+import { AITaskBreakdownPanel } from "../../../chat_bot";
 import Colors from "../../styles/color";
 import { downloadFile } from "../../utils/downloadHelper";
 import { getAbsoluteFileUrl } from "../../utils/fileUrlHelper";
@@ -326,6 +327,13 @@ const TaskDetailScreen = () => {
               {selectedTask.description || "No description"}
             </Text>
           </View>
+          <AITaskBreakdownPanel
+            mode="detail"
+            task={selectedTask}
+            canManage={canManageTask}
+            locked={locked}
+            onTaskUpdated={() => fetchTaskById(taskId)}
+          />
         </View>
 
         {/* Assignee */}

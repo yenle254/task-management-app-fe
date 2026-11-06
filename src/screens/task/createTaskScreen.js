@@ -21,6 +21,7 @@ import SubTaskList from "../../components/task/subtaskList";
 import AddSubtaskInput from "../../components/task/addSubtaskInput";
 import SubtaskProgress from "../../components/task/subtaskProgress";
 import AdvancedTaskFields, { emptyAdvancedFields, advancedPayload } from "../../components/task/advancedTaskFields";
+import { AITaskBreakdownPanel } from "../../../chat_bot";
 import taskService from "../../services/taskService";
 import apiClient from "../../services/api";
 import { teamService } from "../../services/index";
@@ -45,11 +46,13 @@ const formatFileSize = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-const CreateTaskScreen = ({ navigation }) => {
+const CreateTaskScreen = ({ navigation, route }) => {
   const { user, canManageTasks } = useAuth();
   const { createTask, isLoading } = useTaskStore();
 
   const [advancedFields, setAdvancedFields] = useState(emptyAdvancedFields);
+  const [selectedDifficulty, setSelectedDifficulty] = useState("medium");
+  const [aiChecklistItems, setAiChecklistItems] = useState([]);
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
   const [selectedMembers, setSelectedMembers] = useState([]);
@@ -127,6 +130,18 @@ const CreateTaskScreen = ({ navigation }) => {
       }
       if (response?.data) {
         setTeamMembers(response.data);
+        const prefill = route?.params?.aiPrefill;
+        if (prefill) {
+          if (prefill.difficulty) setSelectedDifficulty(prefill.difficulty);
+          if (prefill.priority) {
+            const pObj = PRIORITIES.find((p) => p.id === prefill.priority);
+            if (pObj) setSelectedPriority(pObj);
+          }
+          if (prefill.assigneeId) {
+            const matchedMember = response.data.find((m) => String(m._id) === String(prefill.assigneeId));
+            if (matchedMember) setSelectedMembers([matchedMember]);
+          }
+        }
       }
     } catch (error) {
       console.error("Failed to fetch team members:", error);
@@ -486,7 +501,7 @@ const CreateTaskScreen = ({ navigation }) => {
         assignedTo: selectedMembers.map((m) => m._id),
         teamId: resolvedTeamId,
         priority: selectedPriority?.id || "medium",
-        difficulty: "medium",
+        difficulty: selectedDifficulty || "medium",
         attachments: [],
         startDate: startDate.toISOString(),
         dueDate: dueDate.toISOString(),
@@ -494,7 +509,16 @@ const CreateTaskScreen = ({ navigation }) => {
   
       const createResponse = await createTask(taskPayload);
       const newTaskId = createResponse.data._id || createResponse._id;
-      if (advancedFields.checklistTitle.trim()) await taskService.addChecklist(newTaskId, advancedFields.checklistTitle.trim());
+      if (advancedFields.checklistTitle.trim()) {
+        const clRes = await taskService.addChecklist(newTaskId, advancedFields.checklistTitle.trim());
+        const createdChecklists = clRes?.data?.checklists || [];
+        const latestChecklist = createdChecklists[createdChecklists.length - 1];
+        if (latestChecklist?._id && aiChecklistItems.length > 0) {
+          for (const itemText of aiChecklistItems) {
+            await taskService.addChecklistItem(newTaskId, latestChecklist._id, itemText);
+          }
+        }
+      }
   
 
       if (attachments.length > 0) {
@@ -812,6 +836,36 @@ const CreateTaskScreen = ({ navigation }) => {
                 multiline
                 numberOfLines={5}
                 textAlignVertical="top"
+              />
+              <AITaskBreakdownPanel
+                mode="create"
+                title={taskTitle}
+                description={taskDescription}
+                onApplyBreakdown={(bd) => {
+                  if (bd.difficulty) setSelectedDifficulty(bd.difficulty);
+                  if (bd.priority) {
+                    const matchedP = PRIORITIES.find((p) => p.id === bd.priority);
+                    if (matchedP) setSelectedPriority(matchedP);
+                  }
+                  setAdvancedFields((prev) => ({
+                    ...prev,
+                    estimatedMinutes: bd.estimatedMinutes != null ? String(bd.estimatedMinutes) : prev.estimatedMinutes,
+                    storyPoints: bd.storyPoints != null ? String(bd.storyPoints) : prev.storyPoints,
+                    tags: Array.isArray(bd.tags) && bd.tags.length > 0 ? [...new Set([...prev.tags, ...bd.tags])].slice(0, 20) : prev.tags,
+                    checklistTitle: bd.checklist?.title || prev.checklistTitle
+                  }));
+                  if (Array.isArray(bd.checklist?.items)) {
+                    setAiChecklistItems(bd.checklist.items);
+                  }
+                  if (Array.isArray(bd.subTasks) && bd.subTasks.length > 0) {
+                    const generatedSubtasks = bd.subTasks.map((st, idx) => ({
+                      id: `ai-st-${Date.now()}-${idx}`,
+                      title: st.title,
+                      isCompleted: false
+                    }));
+                    setSubtasks((prev) => [...prev, ...generatedSubtasks]);
+                  }
+                }}
               />
             </View>
 
