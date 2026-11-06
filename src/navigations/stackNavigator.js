@@ -21,6 +21,7 @@ import TaskCalendarScreen from "../screens/task/taskCalendarScreen";
 import TaskTimelineScreen from "../screens/task/taskTimelineScreen";
 
 import ApprovalsScreen from '../screens/task/approvalsScreen';
+import { AICopilotScreen } from '../../chat_bot';
 
 const Stack = createNativeStackNavigator();
 
@@ -51,6 +52,7 @@ const StackNavigator = () => {
       <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />
       <Stack.Screen name="CreateTask" component={CreateTaskScreen} />
       <Stack.Screen name="ImageViewer" component={ImageViewerScreen} />
+      <Stack.Screen name="AICopilot" component={AICopilotScreen} />
 
     </Stack.Navigator>
   );
