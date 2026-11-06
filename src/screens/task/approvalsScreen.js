@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +15,9 @@ export default function ApprovalsScreen({ navigation }) {
   const allowed = ['team_lead', 'hr_manager'].includes(user?.role);
   const load = useCallback(() => allowed ? fetchApprovals({ page, overdueSla, teamId }).catch(() => {}) : Promise.resolve(), [allowed, fetchApprovals, page, overdueSla, teamId]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
+  useEffect(() => {
+    if (approvalsStats && !approvalsLoading && !approvalsError && page > Math.max(1, approvalsPages)) setPage(Math.max(1, approvalsPages));
+  }, [approvalsStats, approvalsLoading, approvalsError, approvalsPages, page]);
   const button = (text, onPress, disabled = false) => <AppButton text={text} onPress={onPress} disabled={disabled || approvalsLoading} style={styles.button} textStyle={{ fontSize: 14 }} />;
   return <SafeAreaView style={styles.screen}>
     <HeaderWithBackButton title="Approvals & Reviews" onBackPress={() => navigation.goBack()} />
@@ -27,7 +30,7 @@ export default function ApprovalsScreen({ navigation }) {
         {user.role === 'hr_manager' && <>
           {button('All teams', () => { setTeamId(undefined); setPage(1); })}
           {!teamId && (approvalsStats?.byTeam || []).map(team => <View key={team.teamId}>
-            {button(`${approvals.find(t => (t.teamId?._id || t.teamId) === team.teamId)?.teamId?.name || 'Team ' + team.teamId} (${team.pending})`, () => { setTeamId(team.teamId); setPage(1); })}
+            {button(`${team.teamName || 'Unavailable team'} (${team.pending})`, () => { setTeamId(team.teamId); setPage(1); })}
           </View>)}
         </>}
         {!!approvalsError && <><Text accessibilityRole="alert">{approvalsError}</Text>{button('Retry', load)}</>}

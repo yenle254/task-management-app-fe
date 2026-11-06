@@ -257,7 +257,7 @@ const LeaveScreen = ({ navigation }) => {
             <Text
               style={{ marginTop: 8, textAlign: "center", color: "#7b7b7bff" }}
             >
-              Ready to catch some fresh air? Click the "Submit leave" and take
+              Ready to catch some fresh air? Click the &quot;Submit leave&quot; and take
               that well-deserved break.
             </Text>
           </View>
@@ -522,10 +522,6 @@ export default LeaveScreen;
 
 const styles = StyleSheet.create({
   container: {},
-  leaveRow: {
-    flexDirection: "row",
-    marginTop: 20,
-  },  
   statusRow: {
     flexDirection: "column",
     marginTop: 20,
