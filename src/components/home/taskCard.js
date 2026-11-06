@@ -39,7 +39,7 @@ const TaskCard = () => {
                 color: "#555555ff",
               }}
             >
-              It looks like you don't have any task right now. This place will
+              It looks like you don&apos;t have any task right now. This place will
               be updated as new task are added!!!
             </Text>
           </View>

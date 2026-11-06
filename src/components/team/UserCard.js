@@ -4,7 +4,7 @@ import Colors from "../../styles/color";
 import Avatar from "../avatar";
 
 const UserCard = memo(
-  ({
+  function UserCard({
     user,
     isSelected,
     onToggle,
@@ -12,7 +12,7 @@ const UserCard = memo(
     disabledReason,
     canChangeRole,
     onChangeRole,
-  }) => {
+  }) {
     const isDisabled = !!disabledReason || !!isAlreadyMember;
     const badgeText =
       disabledReason || (isAlreadyMember ? "Already a member" : null);

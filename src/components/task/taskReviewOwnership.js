@@ -12,6 +12,8 @@ export default function TaskReviewOwnership({ task }) {
   const [members, setMembers] = useState([]), [selected, setSelected] = useState([]), [picker, setPicker] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const reassign = useTaskStore(state => state.reassignReview);
+  const ownershipChanged = idOf(team) !== idOf(task.teamId)
+    || selected.map(idOf).sort().join(',') !== (task.assignedTo || []).map(idOf).sort().join(',');
   const selectTeam = async value => {
     setBusy(true); setError(''); setTeam(value); setSelected([]); setMembers([]);
     try { const response = await userService.getUsersByTeam(value._id); setMembers(response.data.filter(user => user.isActive !== false)); }
@@ -19,7 +21,7 @@ export default function TaskReviewOwnership({ task }) {
     finally { setBusy(false); }
   };
   const open = async () => {
-    setVisible(true); setBusy(true); setError(''); setTeams([]);
+    setVisible(true); setBusy(true); setError(''); setTeams([]); setTeam(null); setMembers([]); setSelected([]);
     try {
       let page = 1, pages = 1; const rows = [];
       do { const response = await teamService.getAllTeams({ page, limit: 100 }); rows.push(...response.data); pages = response.pagination?.pages || response.pagination?.totalPages || 1; page++; } while (page <= pages);
@@ -47,7 +49,7 @@ export default function TaskReviewOwnership({ task }) {
             try { await reassign(task._id, { teamId: team._id, assignedTo: selected.map(idOf) }); setVisible(false); }
             catch (err) { setError(err?.error || 'Could not reassign task'); }
             finally { setBusy(false); }
-          }, !team || !selected.length)}
+          }, !team || !selected.length || !ownershipChanged)}
           {button('Cancel', () => setVisible(false))}
         </View>
       </ScrollView>

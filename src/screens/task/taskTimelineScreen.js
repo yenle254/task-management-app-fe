@@ -1,3 +1,4 @@
+import { getTaskStatus } from '../../utils/taskStatusMap';
 import React, { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { ActivityIndicator, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
@@ -73,8 +74,9 @@ export default function TaskTimelineScreen({ navigation, route }) {
           const bar = geometry(task), y = 40 + i * rowHeight;
           const open = () => navigation.navigate('TaskDetail', { taskId: task._id });
           return <React.Fragment key={task._id}>
-            <SvgText x={8} y={y + 20} fontSize={12} onPress={open} {...(Platform.OS === 'web' ? {} : { accessible: true, accessibilityRole: 'button', accessibilityLabel: task.title })}>{(task.parentTaskId ? '↳ ' : '') + task.title.slice(0, 27)}</SvgText>
-            <Rect x={bar.x} y={y} width={bar.width} height={32} rx={6} fill={task.status === 'done' ? '#d9f3e2' : '#e8e0ff'} onPress={open} />
+            <SvgText x={8} y={y + 14} fontSize={11} onPress={open} {...(Platform.OS === 'web' ? {} : { accessible: true, accessibilityRole: 'button', accessibilityLabel: task.title + ', ' + getTaskStatus(task.status).label })}>{(task.parentTaskId ? '↳ ' : '') + task.title.slice(0, 17)}</SvgText>
+            <SvgText x={8} y={y + 31} fontSize={11} fill={getTaskStatus(task.status).color} onPress={open}>{getTaskStatus(task.status).label}</SvgText>
+            <Rect x={bar.x} y={y} width={bar.width} height={32} rx={6} fill={getTaskStatus(task.status).bgColor} onPress={open} />
             <Rect x={bar.x} y={y + 27} width={bar.width * (task.progress || 0) / 100} height={5} fill={Colors.primary} />
             <SvgText x={bar.x + 5} y={y + 20} fontSize={11} fill={Colors.primary} onPress={open}>{task.progress || 0}%</SvgText>
           </React.Fragment>;

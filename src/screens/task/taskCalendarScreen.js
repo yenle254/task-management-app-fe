@@ -1,3 +1,4 @@
+import { getTaskStatus } from '../../utils/taskStatusMap';
 import React, { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
@@ -50,9 +51,10 @@ export default function TaskCalendarScreen({ navigation, route }) {
             const end = dateKey(new Date(task.dueDate)), start = task.startDate ? dateKey(new Date(task.startDate)) : end;
             const indices = week.map((day, i) => day && dateKey(day) >= start && dateKey(day) <= end ? i : -1).filter(i => i >= 0);
             if (!indices.length) return null;
-            return <TouchableOpacity key={task._id} onPress={() => open(task)} accessibilityLabel={task.title + ', deadline ' + end}
-              style={{ marginLeft: (indices[0] * 100 / 7) + '%', width: (indices.length * 100 / 7) + '%', backgroundColor: task.status === 'done' ? '#ddf5df' : '#eee8ff', borderRadius: 5, padding: 5, marginBottom: 4 }}>
+            return <TouchableOpacity key={task._id} onPress={() => open(task)} accessibilityLabel={task.title + ', ' + getTaskStatus(task.status).label + ', deadline ' + end}
+              style={{ marginLeft: (indices[0] * 100 / 7) + '%', width: (indices.length * 100 / 7) + '%', backgroundColor: getTaskStatus(task.status).bgColor, borderRadius: 5, padding: 5, marginBottom: 4 }}>
               <Text numberOfLines={1} style={{ color: Colors.primary, fontSize: 11 }}>{task.title}</Text>
+              <Text numberOfLines={1} style={{ color: getTaskStatus(task.status).color, fontSize: 10 }}>{getTaskStatus(task.status).label}</Text>
             </TouchableOpacity>;
           })}
         </View>;

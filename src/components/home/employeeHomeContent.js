@@ -37,8 +37,9 @@ export default function EmployeeHomeContent({ navigation, onRefresh }) {
   const schedules = useDashboardResource(`home-calendar:${today}`, async () => homeTasks(await taskService.getCalendar({ from: today, to: today, scope: 'self' })));
   const tasks = useDashboardResource(`home-tasks:${page}`, async () => homeTaskPage(await taskService.getMyTasks({ page, limit: PAGE_SIZE, sort: 'createdAt_desc' }), page, PAGE_SIZE));
   const review = useDashboardResource('home-review', async () => (await employeeService.getEmployeeDashboard()).data);
-  useDashboardRefresh(onRefresh, [schedules.reload, tasks.reload, review.reload]);
-  useFocusEffect(useCallback(() => { schedules.reload(); tasks.reload(); review.reload(); }, [schedules.reload, tasks.reload, review.reload]));
+  const reloadSchedules = schedules.reload, reloadTasks = tasks.reload, reloadReview = review.reload;
+  useDashboardRefresh(onRefresh, [reloadSchedules, reloadTasks, reloadReview]);
+  useFocusEffect(useCallback(() => { reloadSchedules(); reloadTasks(); reloadReview(); }, [reloadSchedules, reloadTasks, reloadReview]));
   const openTask = task => navigation.navigate('TaskDetail', { taskId: task._id });
   return <View style={styles.container}>
     <WelcomeCard />
