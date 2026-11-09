@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Alert, Platform } from 'react-native';
 import { getAbsoluteFileUrl } from './fileUrlHelper';
+import { downloadAuthenticated } from '../services/fileService';
 
 const getMimeType = (filename) => {
   const ext = filename?.split('.')?.pop()?.toLowerCase() || '';
@@ -59,7 +60,7 @@ export const downloadFile = async (url, filename) => {
       .replace(/[\x00-\x1f\x7f<>:"|?*]/g, '_').trim() || 'download';
     if (!FileSystem.cacheDirectory) throw new Error('Temporary storage is unavailable.');
     tempFileUri = `${FileSystem.cacheDirectory}download_${Date.now()}_${++downloadSequence}_${encodeURIComponent(safeFilename)}`;
-    const result = await FileSystem.downloadAsync(absoluteUrl, tempFileUri);
+    const result = await downloadAuthenticated(absoluteUrl, tempFileUri);
     if (result.status !== 200) {
       Alert.alert('Download Error', downloadErrorMessage(result.status, safeFilename));
       return null;

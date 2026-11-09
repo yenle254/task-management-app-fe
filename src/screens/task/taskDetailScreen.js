@@ -1,8 +1,8 @@
 import TaskReviewPanel from '../../components/task/taskReviewPanel';
 import { getTaskStatus } from '../../utils/taskStatusMap';
 import { useAuth } from "@/src/contexts/authContext";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
+import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import EditIcon from "../../../assets/icons/edit.svg";
@@ -43,9 +43,14 @@ const TaskDetailScreen = () => {
     deleteSubtask,
   } = useTaskStore();
 
-  useEffect(() => {
-    fetchTaskById(taskId).catch(error => Alert.alert("Task", error?.error || "Failed to load task"));
-  }, [taskId, fetchTaskById]);
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    // Stacked detail screens share selectedTask, so restore this route on focus.
+    fetchTaskById(taskId).catch(error => {
+      if (active) Alert.alert("Task", error?.error || "Failed to load task");
+    });
+    return () => { active = false; };
+  }, [taskId, fetchTaskById]));
 
   const handleStatusUpdate = async (newStatus) => {
     try {

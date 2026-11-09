@@ -97,28 +97,36 @@ const AttendanceDailyChart = ({ data }) => {
                   data: present,
                   color: (opacity = 1) =>
                     rgbaFromHex(STATUS_COLORS.done, opacity),
-                  strokeWidth: 2,
+                  strokeWidth: 2.5,
                 },
                 {
                   data: late,
                   color: (opacity = 1) =>
                     rgbaFromHex(STATUS_COLORS.todo, opacity),
-                  strokeWidth: 2,
+                  strokeWidth: 2.5,
                 },
                 {
                   data: absent,
                   color: (opacity = 1) =>
                     rgbaFromHex(LEAVE_TYPE_COLORS.sick, opacity),
-                  strokeWidth: 2,
+                  strokeWidth: 2.5,
                 },
               ],
             }}
             width={screenWidth - 48}
             height={220}
-            chartConfig={baseChartConfig}
+            chartConfig={{
+              ...baseChartConfig,
+              fillShadowGradientFrom: STATUS_COLORS.done,
+              fillShadowGradientFromOpacity: 0.18,
+              fillShadowGradientTo: "#FFFFFF",
+              fillShadowGradientToOpacity: 0.02,
+            }}
+            bezier
             fromZero
             withDots={false}
             withInnerLines
+            withVerticalLines={false}
             segments={4}
             formatYLabel={(v) => String(Math.round(Number(v)))}
             style={styles.chart}

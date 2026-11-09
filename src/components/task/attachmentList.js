@@ -17,9 +17,13 @@ import PdfIcon from "../../../assets/icons/todo.svg";
 import DownloadIcon from "../../../assets/icons/user.svg";
 import Colors from "../../styles/color";
 
+import { usePrivatePreviews } from '../../utils/usePrivatePreviews';
+import { getPreviewUrl } from '../../services/fileService';
+
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const AttachmentList = ({ attachments = [], onDelete, onOpenFile, onImagePress }) => {
+  const previewUrls = usePrivatePreviews(attachments);
   const [modalVisible, setModalVisible] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -35,7 +39,7 @@ const AttachmentList = ({ attachments = [], onDelete, onOpenFile, onImagePress }
 
   const safeAttachments = Array.isArray(attachments) ? attachments : [];
 
-  const images = safeAttachments.filter(isImage);
+  const images = safeAttachments.filter(isImage).map(att => ({ ...att, url: previewUrls[att.url] || '' }));
   const files = safeAttachments.filter((att) => !isImage(att));  const panResponder = useMemo(() => (
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -62,6 +66,8 @@ const AttachmentList = ({ attachments = [], onDelete, onOpenFile, onImagePress }
 
   const handleOpenFile = async (url) => {
     try {
+      url = await getPreviewUrl(url);
+      if (!url) throw new Error('Please sign in');
       const supported = await Linking.canOpenURL(url);
       if (supported) await Linking.openURL(url);
       else Alert.alert("Error", "Cannot open this file");
@@ -78,7 +84,7 @@ const AttachmentList = ({ attachments = [], onDelete, onOpenFile, onImagePress }
         <View style={styles.imageSection}>
           <TouchableOpacity onPress={() => openImageModal(0)}>
             <Image
-              source={{ uri: images[0].url }}
+              source={images[0].url ? { uri: images[0].url } : undefined}
               style={styles.mainImage}
               resizeMode="cover"
             />
@@ -98,7 +104,7 @@ const AttachmentList = ({ attachments = [], onDelete, onOpenFile, onImagePress }
                     onPress={() => openImageModal(idx)}
                     style={styles.thumbnailWrapper}
                   >
-                    <Image source={{ uri: att.url }} style={styles.thumbnail} />
+                    <Image source={att.url ? { uri: att.url } : undefined} style={styles.thumbnail} />
                     {idx === 4 && images.length > 5 && (
                       <View style={styles.moreOverlay}>
                         <Text style={styles.moreText}>
@@ -165,7 +171,7 @@ const AttachmentList = ({ attachments = [], onDelete, onOpenFile, onImagePress }
 
           <View style={styles.imageContainer} {...panResponder.panHandlers}>
             <Image
-              source={{ uri: images[currentIndex]?.url }}
+              source={images[currentIndex]?.url ? { uri: images[currentIndex].url } : undefined}
               style={styles.fullImage}
               resizeMode="contain"
             />

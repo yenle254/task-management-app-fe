@@ -118,12 +118,20 @@ const TeamScreen = ({ navigation }) => {
               style={styles.createButton}
               textStyle={styles.createButtonText}
             />
-            <AppButton
-              text="Office Locations"
-              onPress={() => navigation.navigate("OfficeList")}
-              style={styles.secondaryButton}
-              textStyle={styles.secondaryButtonText}
-            />
+            <View style={styles.secondaryRow}>
+              <AppButton
+                text="Manage Members"
+                onPress={() => navigation.navigate("ManageMembers")}
+                style={styles.secondaryButton}
+                textStyle={styles.secondaryButtonText}
+              />
+              <AppButton
+                text="Office Locations"
+                onPress={() => navigation.navigate("OfficeList")}
+                style={styles.secondaryButton}
+                textStyle={styles.secondaryButtonText}
+              />
+            </View>
           </View>
         )}
       </View>
@@ -210,14 +218,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  secondaryRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
   secondaryButton: {
-    width: "100%",
-    height: 50,
-    borderRadius: 25,
+    flex: 1,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: Colors.frame,
   },
   secondaryButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
     color: Colors.primary,
   },

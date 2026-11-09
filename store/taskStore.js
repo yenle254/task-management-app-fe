@@ -63,12 +63,24 @@ const useTaskStore = create((set, get) => ({
     const filters = { ...get().filters, ...params };
     set({ lastListQuery: { scope, params: filters } });
     const requestId = get().listRequestId + 1;
+    const key = scope === 'my' ? 'myTasks' : scope === 'team' ? 'teamTasks' : 'tasks';
     set({ listRequestId: requestId, listLoading: true, error: null,
-      ...(Number(filters.page) === 1 ? { [scope === 'my' ? 'myTasks' : 'tasks']: [], page: 1, total: 0, hasMore: false } : {}) });
+      ...(Number(filters.page) === 1 ? { [key]: [], page: 1, total: 0, hasMore: false } : {}) });
     try {
-      const response = await (scope === 'my' ? taskService.getMyTasks : taskService.getAllTasks)(queryParams(filters));
+      let response;
+      if (scope === 'my') {
+        response = await taskService.getMyTasks(queryParams(filters));
+      } else if (scope === 'team') {
+        if (!filters.teamId) {
+          response = { data: [], page: 1, pages: 0, total: 0 };
+        } else {
+          const { teamId, ...restFilters } = filters;
+          response = await taskService.getTeamTasks(teamId, queryParams(restFilters));
+        }
+      } else {
+        response = await taskService.getAllTasks(queryParams(filters));
+      }
       if (get().listRequestId !== requestId) return response;
-      const key = scope === 'my' ? 'myTasks' : 'tasks';
       set(state => ({ [key]: mergePage(state[key], response.data || [], filters.page),
         page: response.page || 1, pages: response.pages || 0, total: response.total || 0,
         hasMore: (response.page || 1) < (response.pages || 0), listLoading: false }));
@@ -84,6 +96,7 @@ const useTaskStore = create((set, get) => ({
   teamTasks: [],
   selectedTask: null,
   taskStats: null,
+  teamTaskStats: null,
   isLoading: false,
   error: null,
   
@@ -482,6 +495,21 @@ const useTaskStore = create((set, get) => ({
   },
 
   /**
+   * Fetch team/all task statistics
+   */
+  fetchTeamTaskStats: async (params = { scope: 'team' }) => {
+    try {
+      const response = await taskService.getTaskStats(params);
+      set({
+        teamTaskStats: response.data,
+      });
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  /**
    * Set filters
    * @param {Object} newFilters
    */
@@ -535,6 +563,7 @@ const useTaskStore = create((set, get) => ({
       teamTasks: [],
       selectedTask: null,
       taskStats: null,
+      teamTaskStats: null,
       isLoading: false,
       error: null,
       filters: defaultFilters(), listLoading: false, page: 1, pages: 0, total: 0, hasMore: false, listRequestId: get().listRequestId + 1,

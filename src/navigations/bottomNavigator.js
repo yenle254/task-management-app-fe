@@ -1,5 +1,6 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { default as React, use } from "react";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import React from "react";
 import CalendarAc from "../../assets/icons/calendar_ac.svg";
 import CalendarInac from "../../assets/icons/calendar_inac.svg";
 import HomeAc from "../../assets/icons/home_ac.svg";
@@ -20,6 +21,22 @@ import { useAuth } from "../contexts/authContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const Bottom = createBottomTabNavigator();
+const LeaveStack = createNativeStackNavigator();
+
+const LeaveStackNavigator = () => {
+    const { user } = useAuth();
+    return (
+        <LeaveStack.Navigator
+            initialRouteName={user?.role === "hr_manager" ? "LeaveInbox" : "MyLeaves"}
+            screenOptions={{
+                headerShown: false,
+            }}
+        >
+            <LeaveStack.Screen name="LeaveInbox" component={PendingLeavesScreen} />
+            <LeaveStack.Screen name="MyLeaves" component={LeaveScreen} />
+        </LeaveStack.Navigator>
+    );
+};
 
 const BottomNavigator = () => {
     const { user } = useAuth();
@@ -93,7 +110,7 @@ const BottomNavigator = () => {
             {user?.role === "hr_manager" ? (
                 <Bottom.Screen 
                     name="PendingLeaves"
-                    component={PendingLeavesScreen}
+                    component={LeaveStackNavigator}
                     options={{
                         tabBarIcon: ({ focused }) => (
                             focused ? <LeaveAc width={28} height={28} /> : <LeaveInac width={28} height={28} />
@@ -103,7 +120,7 @@ const BottomNavigator = () => {
             ) : (
                 <Bottom.Screen
                 name="leave"
-                component={LeaveScreen}
+                component={LeaveStackNavigator}
                 options={{
                     tabBarIcon: ({ focused }) => (
                         focused ? <LeaveAc width={28} height={28} /> : <LeaveInac width={28} height={28} />

@@ -9,13 +9,24 @@ export const leaveStatusLabel = status => ({
   pending_hr: 'Waiting for HR', approved: 'Approved', rejected: 'Rejected', cancelled: 'Cancelled'
 }[status] || status);
 
-export default function LeaveWorkflowDetails({ leave, user, navigation, onChanged, onClose }) {
-  const { cancelLeave, isMutating } = useLeaveStore();
+export default function LeaveWorkflowDetails({ leave, user, navigation, onChanged, onClose, allowSelfDecision = false }) {
+  const { approveLeave, rejectLeave, cancelLeave, isMutating } = useLeaveStore();
   const [error, setError] = useState('');
   const owner = String(leave.userId?._id || leave.userId) === String(user?._id || user?.id);
   const pending = ['pending', 'pending_team_lead', 'pending_hr'].includes(leave.status);
+  const canSelfDecide = allowSelfDecision && owner && user?.role === 'hr_manager' && pending;
   const cancellable = (owner || user?.role === 'hr_manager') &&
     (pending || (owner && leave.status === 'draft') || (leave.status === 'approved' && new Date(leave.startDate) > new Date()));
+  const approve = async () => {
+    if (isMutating) return;
+    try { setError(''); await approveLeave(leave._id, leave.revision); onChanged?.(); onClose?.(); }
+    catch (e) { setError(e?.error || 'Request changed. Refresh and retry.'); onChanged?.(); }
+  };
+  const reject = async () => {
+    if (isMutating) return;
+    try { setError(''); await rejectLeave(leave._id, '', leave.revision); onChanged?.(); onClose?.(); }
+    catch (e) { setError(e?.error || 'Request changed. Refresh and retry.'); onChanged?.(); }
+  };
   const cancel = async () => {
     if (isMutating) return;
     try { setError(''); await cancelLeave(leave._id, leave.revision); onChanged?.(); onClose?.(); }
@@ -36,6 +47,8 @@ export default function LeaveWorkflowDetails({ leave, user, navigation, onChange
       text={leave.status === 'draft' ? 'Edit and submit draft' : 'Edit and resubmit'}
       disabled={isMutating || !!leave.operation} style={styles.button} textStyle={{ fontSize: 15 }}
       onPress={() => { onClose?.(); navigation.navigate('SubmitLeave', { leave }); }} />}
+    {canSelfDecide && <AppButton text="Approve leave" disabled={isMutating || !!leave.operation} onPress={approve} style={[styles.button, { backgroundColor: '#16a34a' }]} textStyle={{ fontSize: 15 }} />}
+    {canSelfDecide && <AppButton text="Reject leave" disabled={isMutating || !!leave.operation} onPress={reject} style={[styles.button, { backgroundColor: '#dc2626' }]} textStyle={{ fontSize: 15 }} />}
     {cancellable && <AppButton text="Cancel leave" disabled={isMutating || !!leave.operation} onPress={cancel} style={styles.button} textStyle={{ fontSize: 15 }} />}
   </View>;
 }

@@ -495,7 +495,7 @@ const LeaveScreen = ({ navigation }) => {
                   </>
                 )}
 
-                <LeaveWorkflowDetails leave={selectedLeave} user={user} navigation={navigation}
+                <LeaveWorkflowDetails leave={selectedLeave} user={user} navigation={navigation} allowSelfDecision
                   onChanged={loadData} onClose={() => { setModalVisible(false); setSelectedLeave(null); }} />
               </>
             )}

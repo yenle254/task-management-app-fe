@@ -78,3 +78,8 @@ npx expo prebuild --platform android
 - Do NOT commit native folders (`/android`, `/ios`)
 - Do NOT commit `.env` files
 - API config is gitignored - do not modify `src/config/api.config.js`
+
+## Report & Documentation Output Policy
+
+- All reports, progress summaries, memory notes, and markdown documentation generated for the frontend MUST be placed inside the `report/` directory (`project/report/<filename>.md`). Do NOT create new `.md` report files at the root of `project/`.
+- All `.log` files (test logs, lint logs, export/build logs) MUST be created and placed inside `project/report/logs/<filename>.log`. Do NOT place `.log` files at the root of `project/` or directly in `project/report/`.

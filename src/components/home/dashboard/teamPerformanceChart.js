@@ -29,13 +29,19 @@ const TeamPerformanceChart = ({ data }) => {
         <BarChart
           data={chartData}
           width={screenWidth - 48}
-          height={200}
+          height={210}
           chartConfig={{
             ...baseChartConfig,
-            color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
+            color: (opacity = 1) => `rgba(112, 87, 252, ${opacity})`,
+            fillShadowGradientFrom: "#7057FC",
+            fillShadowGradientFromOpacity: 0.9,
+            fillShadowGradientTo: "#7057FC",
+            fillShadowGradientToOpacity: 0.9,
           }}
           verticalLabelRotation={0}
           fromZero
+          withInnerLines
+          withVerticalLines={false}
           showValuesOnTopOfBars
           style={styles.chart}
         />

@@ -307,11 +307,12 @@ const taskService = {
 
   /**
    * Get task statistics
+   * @param {Object} [params] - Optional scope/teamId parameters
    * @returns {Promise}
    */
-  getTaskStats: async () => {
+  getTaskStats: async (params) => {
     try {
-      const response = await apiClient.get('/tasks/stats');
+      const response = await apiClient.get('/tasks/stats', params ? { params } : undefined);
       return response;
     } catch (error) {
       throw error;

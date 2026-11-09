@@ -5,6 +5,7 @@ import TeamDetailsScreen from "../screens/team/teamDetailsScreen";
 import CreateTeamScreen from "../screens/team/createTeamScreen";
 import AddMemberScreen from "../screens/team/addMemberScreen";
 import EditTeamScreen from "../screens/team/editTeamScreen";
+import ManageMembersScreen from "../screens/team/manageMembersScreen";
 import OfficeListScreen from "../screens/office/officeListScreen";
 import CreateOfficeScreen from "../screens/office/createOfficeScreen";
 import EditOfficeScreen from "../screens/office/editOfficeScreen";
@@ -24,6 +25,7 @@ const TeamStackNavigator = () => {
       <Stack.Screen name="CreateTeam" component={CreateTeamScreen} />
       <Stack.Screen name="EditTeam" component={EditTeamScreen} />
       <Stack.Screen name="AddMember" component={AddMemberScreen} />
+      <Stack.Screen name="ManageMembers" component={ManageMembersScreen} />
       <Stack.Screen name="OfficeList" component={OfficeListScreen} />
       <Stack.Screen name="CreateOffice" component={CreateOfficeScreen} />
       <Stack.Screen name="EditOffice" component={EditOfficeScreen} />
