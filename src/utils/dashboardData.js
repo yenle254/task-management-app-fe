@@ -79,6 +79,28 @@ export function countTaskStatuses(tasks) {
   return Object.entries(counts).map(([id, count]) => ({ _id: id, count }));
 }
 
+export function countTaskPriorities(tasks) {
+  if (!records(tasks)) return null;
+  const counts = { high: 0, medium: 0, low: 0 };
+  for (const task of tasks) {
+    const p = task.priority || 'medium';
+    if (!Object.prototype.hasOwnProperty.call(counts, p)) return null;
+    counts[p] += 1;
+  }
+  return Object.entries(counts).map(([id, count]) => ({ _id: id, count }));
+}
+
+export function summarizeTaskHours(tasks) {
+  if (!records(tasks)) return null;
+  return tasks
+    .filter((task) => typeof task.title === 'string' && ((isNumber(task.estimatedMinutes) && task.estimatedMinutes > 0) || (isNumber(task.actualMinutes) && task.actualMinutes > 0)))
+    .map((task) => ({
+      label: task.title,
+      estimatedHours: Math.round(((isNumber(task.estimatedMinutes) ? task.estimatedMinutes : 0) / 60) * 100) / 100,
+      actualHours: Math.round(((isNumber(task.actualMinutes) ? task.actualMinutes : 0) / 60) * 100) / 100,
+    }));
+}
+
 export function daysOverdue(task, now = new Date()) {
   if (!task || !['todo', 'in_progress', 'in_review'].includes(task.status) || !task.dueDate) return null;
   const due = new Date(task.dueDate).getTime();

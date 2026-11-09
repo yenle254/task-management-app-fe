@@ -2,6 +2,7 @@ import useAuditStore from '../../store/auditStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import useLeaveStore from '../../store/leaveStore';
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { clearPreviews } from '../services/fileService';
 import authService from '../services/authService';
 import { subscribeSessionExpired } from '../services/api';
 import socketService from '../services/socketService';
@@ -37,6 +38,7 @@ export const AuthProvider = ({ children }) => {
       useNotificationPreferencesStore.getState().reset();
       useTaskStore.getState().reset();
       useLeaveStore.getState().reset();
+      clearPreviews().catch(() => {});
       socketService.disconnect();
       setIsAuthenticated(false);
       setUser(null);
@@ -65,18 +67,19 @@ export const AuthProvider = ({ children }) => {
       const storedUser = await authService.getStoredUser();
       const onboarding = await AsyncStorage.getItem("hasSeenOnboarding");
 
-      setIsAuthenticated(!!token);
-      setUser(storedUser);
+      setIsAuthenticated(false);
+      setUser(null);
       setHasSeenOnboarding(onboarding === "true");
 
 
-      if (token && storedUser) {
+      if (token) {
         try {
           const response = await authService.getCurrentUser();
           
           // authService.getCurrentUser returns { success, data }
           if (response?.data) {
             setUser(response.data);
+            setIsAuthenticated(true);
           } else {
           }
           
@@ -152,16 +155,17 @@ export const AuthProvider = ({ children }) => {
   const signOut = async () => {
     try {
       // Unregister while the session token is still valid.
-      await cleanupNotifications();
+      await cleanupNotifications().catch(() => {});
       useNotificationStore.getState().reset();
       useNotificationPreferencesStore.getState().reset();
       // Disconnect socket before logout
       useMessageStore.getState().reset();
       useAuditStore.getState().reset();
+      clearPreviews().catch(() => {});
       socketService.disconnect();
       console.log('Socket disconnected on logout');
       
-      await authService.logout();
+      await authService.logout().catch(() => {});
       useTaskStore.getState().reset();
       useLeaveStore.getState().reset();
       setIsAuthenticated(false);

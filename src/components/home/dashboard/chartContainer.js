@@ -1,6 +1,5 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import Colors from "../../../styles/color";
 
 const ChartContainer = ({ children, noDataMessage = "No data available" }) => {
   const hasData = React.Children.count(children) > 0;
@@ -14,22 +13,21 @@ const ChartContainer = ({ children, noDataMessage = "No data available" }) => {
 
 const styles = StyleSheet.create({
   chartContainer: {
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    padding: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: Colors.borderGray,
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    borderColor: "#EAECF0",
+    shadowColor: "#101828",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     elevation: 2,
   },
   noData: {
     textAlign: "center",
-    color: Colors.black,
-    opacity: 0.55,
+    color: "#667085",
     padding: 30,
     fontSize: 14,
   },

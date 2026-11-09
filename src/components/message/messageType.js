@@ -7,7 +7,7 @@ import Camera from "../../../assets/icons/cam.svg";
 import Colors from "../../styles/color";
 import Micro from "../../../assets/icons/micro.svg";
 import * as ImagePicker from "expo-image-picker";
-import { getToken } from "../../utils/authStorage";
+import { authorizedFetch, getValidAccessToken } from '../../services/tokenManager';
 import { API_URL } from "../../config/api.config";
 
 const MessageType = ({ onSendMessage, onTyping, disabled, receiverId, conversationId }) => {
@@ -88,14 +88,14 @@ const MessageType = ({ onSendMessage, onTyping, disabled, receiverId, conversati
     });
 
     try {
-      const token = await getToken();
+      const token = await getValidAccessToken();
       const baseUrl = API_URL.replace('/api', '');
       const uploadUrl = `${baseUrl}/api/upload`;
       
       console.log('Upload URL:', uploadUrl);
       console.log('Uploading file:', { filename, type });
       
-      const response = await fetch(uploadUrl, {
+      const response = await authorizedFetch(uploadUrl, {
         method: 'POST',
         body: formData,
         headers: {

@@ -1,25 +1,21 @@
 import React from "react";
 import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
 import Colors from "../../styles/color";
-import { API_URL } from "../../config/api.config";
+import { usePrivatePreviews } from '../../utils/usePrivatePreviews';
 
 const MessageBubble = ({ message, isOwn, time, attachments = [] }) => {
   const hasAttachments = attachments && attachments.length > 0;
   const hasText = message && message.trim().length > 0;
 
-  const getFullImageUrl = (url) => {
-    if (!url) return null;
-    if (url.startsWith('http')) return url;
-    const baseUrl = API_URL.replace('/api', '');
-    return `${baseUrl}${url}`;
-  };
+  const previewUrls = usePrivatePreviews(attachments);
+  const getFullImageUrl = url => previewUrls[url] || '';
 
   return (
     <View style={[styles.container, isOwn ? styles.ownContainer : styles.otherContainer]}>
       <View style={[styles.bubble, isOwn ? styles.ownBubble : styles.otherBubble]}>
         {hasAttachments && attachments.map((attachment, index) => (
           <View key={index} style={styles.attachmentContainer}>
-            {attachment.type === 'image' && (
+            {attachment.type === 'image' && Boolean(getFullImageUrl(attachment.url)) && (
               <TouchableOpacity activeOpacity={0.9}>
                 <Image
                   source={{ uri: getFullImageUrl(attachment.url) }}

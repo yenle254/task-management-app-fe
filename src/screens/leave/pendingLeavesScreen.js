@@ -42,10 +42,11 @@ const PendingLeavesScreen = ({ navigation }) => {
   const { user } = useAuth();
   const canReview = leave => {
     const actorId = String(user?._id || user?.id);
-    if (String(leave.userId?._id || leave.userId) === actorId) return false;
     if (!["pending", "pending_team_lead", "pending_hr"].includes(leave.status)) return false;
-    return user?.role === "hr_manager" || (user?.role === "team_lead" && leave.status === "pending_team_lead" &&
-      (leave.approverSnapshot || []).some(a => a.role === "team_lead" && String(a.userId?._id || a.userId) === actorId));
+    if (user?.role === "hr_manager") return true;
+    if (String(leave.userId?._id || leave.userId) === actorId) return false;
+    return user?.role === "team_lead" && leave.status === "pending_team_lead" &&
+      (leave.approverSnapshot || []).some(a => a.role === "team_lead" && String(a.userId?._id || a.userId) === actorId);
   };
 
   useFocusEffect(React.useCallback(() => { loadData(); }, [user?._id]));
@@ -62,7 +63,7 @@ const PendingLeavesScreen = ({ navigation }) => {
       await fetchPendingLeaves(user?.role === "team_lead" ? { step: "team_lead" } : {});
       try {
         const response = await apiClient.get('/leaves/statistics');
-        
+
         if (response?.success) {
           const stats = response?.stats || { pending: 0, approved: 0, rejected: 0 };
           const leaves = response?.data || [];
@@ -130,7 +131,7 @@ const PendingLeavesScreen = ({ navigation }) => {
 
   const handleConfirmApprove = async () => {
     if (!selectedLeave || isMutating) return;
-    
+
     try {
       await approveLeave(selectedLeave._id, selectedLeave.revision);
       Alert.alert("Success", "Leave request has been approved!");
@@ -148,8 +149,8 @@ const PendingLeavesScreen = ({ navigation }) => {
 
   const handleConfirmReject = async () => {
     if (!selectedLeave || isMutating) return;
-    
-    
+
+
     try {
       await rejectLeave(selectedLeave._id, rejectionReason, selectedLeave.revision);
       Alert.alert("Success", "Leave request has been rejected!");
@@ -191,7 +192,7 @@ const PendingLeavesScreen = ({ navigation }) => {
         onPress={() => handleViewDetails(item)}
       >
         <View style={styles.employeeSection}>
-          <Avatar 
+          <Avatar
             url={employeeAvatar}
             name={employeeName}
             width={48}
@@ -247,7 +248,7 @@ const PendingLeavesScreen = ({ navigation }) => {
           >
             <Text style={styles.approveButtonText}>Approve</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[styles.actionButton, styles.rejectButton]}
             onPress={(e) => {
@@ -318,11 +319,49 @@ const PendingLeavesScreen = ({ navigation }) => {
         </View>
       </View>
 
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, padding: 16 }}>
-        <TouchableOpacity accessibilityRole="button" onPress={() => setSelectedTeam("all")}><Text>Pending inbox</Text></TouchableOpacity>
-        <TouchableOpacity accessibilityRole="button" onPress={() => setSelectedTeam("history")}><Text>All requests</Text></TouchableOpacity>
-        <TouchableOpacity accessibilityRole="button" onPress={() => navigation.navigate("MyLeaves")}><Text>My leaves</Text></TouchableOpacity>
-        <TouchableOpacity accessibilityRole="button" onPress={() => navigation.navigate("SubmitLeave")}><Text>Submit Leave</Text></TouchableOpacity>
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={[styles.tab, selectedTeam === "all" && styles.activeTab]}
+          onPress={() => setSelectedTeam("all")}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              selectedTeam === "all" && styles.activeTabText,
+            ]}
+          >
+            Pending inbox
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={[styles.tab, selectedTeam === "history" && styles.activeTab]}
+          onPress={() => setSelectedTeam("history")}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              selectedTeam === "history" && styles.activeTabText,
+            ]}
+          >
+            All requests
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={styles.tab}
+          onPress={() => navigation.navigate("MyLeaves")}
+        >
+          <Text style={styles.tabText}>My leaves</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={styles.tab}
+          onPress={() => navigation.navigate("SubmitLeave")}
+        >
+          <Text style={styles.tabText}>Submit Leave</Text>
+        </TouchableOpacity>
       </View>
       {error || actionError ? <TouchableOpacity accessibilityRole="button" onPress={() => { setActionError(""); loadData(); }}><Text>{error || actionError} · Retry</Text></TouchableOpacity> : null}
       {/* <View style={styles.filterContainer}>
@@ -409,7 +448,7 @@ const PendingLeavesScreen = ({ navigation }) => {
         }}
       >
         <View style={styles.modalContainer}>
-          <ScrollView 
+          <ScrollView
             style={styles.modalScrollView}
             contentContainerStyle={styles.modalScrollContent}
           >
@@ -417,13 +456,13 @@ const PendingLeavesScreen = ({ navigation }) => {
               {selectedLeave && (
                 <>
                   <Text style={styles.modalTitle}>Leave Request Details</Text>
-                  
+
                   <View style={styles.modalEmployeeSection}>
-                    <Avatar 
+                    <Avatar
                       url={selectedLeave.userId?.profile?.avatar || null}
-                      name={selectedLeave.userId?.profile?.fullName|| selectedLeave.userId?.email || "Unknown"} 
-                      width={56} 
-                      height={56} 
+                      name={selectedLeave.userId?.profile?.fullName || selectedLeave.userId?.email || "Unknown"}
+                      width={56}
+                      height={56}
                     />
                     <View style={styles.modalEmployeeInfo}>
                       <Text style={styles.modalEmployeeName}>
@@ -480,7 +519,7 @@ const PendingLeavesScreen = ({ navigation }) => {
                       >
                         <Text style={styles.modalApproveButtonText}>Approve</Text>
                       </TouchableOpacity>
-                      
+
                       <TouchableOpacity
                         style={[styles.modalActionButton, styles.modalRejectButton]}
                         onPress={handleRejectClick}
@@ -535,7 +574,7 @@ const PendingLeavesScreen = ({ navigation }) => {
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={[
-                            styles.modalConfirmButton, 
+                            styles.modalConfirmButton,
                             styles.modalRejectConfirmButton,
                             isMutating && styles.modalConfirmButtonDisabled
                           ]}
@@ -575,6 +614,38 @@ const PendingLeavesScreen = ({ navigation }) => {
 export default PendingLeavesScreen;
 
 const styles = StyleSheet.create({
+  tabsContainer: {
+    flexDirection: "row",
+    gap: 0,
+    padding: 3,
+    backgroundColor: Colors.white,
+    borderRadius: 24,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 20,
+    backgroundColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    position: "relative",
+  },
+  activeTab: {
+    backgroundColor: Colors.primary,
+  },
+  tabText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#666666",
+  },
+  activeTabText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
   filterContainer: {
     marginTop: -80,
     marginHorizontal: 16,

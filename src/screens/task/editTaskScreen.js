@@ -1,5 +1,5 @@
 import { useAuth } from '@/src/contexts/authContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { authorizedFetch, getValidAccessToken } from '../../services/tokenManager';
 import { useNavigation, useRoute } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
 import React, { useEffect, useState } from "react";
@@ -270,7 +270,7 @@ const EditTaskScreen = () => {
     });
 
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await getValidAccessToken();
       
       if (!token) {
         throw new Error('Authentication token not found. Please login again.');
@@ -279,7 +279,7 @@ const EditTaskScreen = () => {
       console.log('Uploading attachments to task:', taskIdParam);
       console.log('Files count:', files.length);
       
-      const response = await fetch(
+      const response = await authorizedFetch(
         `${API_URL}/tasks/${taskIdParam}/attachments/bulk`,
         {
           method: 'POST',

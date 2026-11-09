@@ -21,7 +21,7 @@ const TaskScreen = () => {
   const { width } = useWindowDimensions();
   const navigation = useNavigation();
   const { user, canManageTasks, isLoading: authLoading } = useAuth();
-  const { tasks, myTasks, taskStats, listLoading: isLoading, error, fetchTaskPage, fetchTaskStats, setFilters,
+  const { tasks, myTasks, teamTasks, taskStats, teamTaskStats, listLoading: isLoading, error, fetchTaskPage, fetchTaskStats, fetchTeamTaskStats, setFilters,
     resetFilters, filters, page, total, hasMore } = useTaskStore();
   const [approvalCount, setApprovalCount] = useState(null);
   useFocusEffect(useCallback(() => {
@@ -36,7 +36,9 @@ const TaskScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const loadingMore = useRef(false);
   const canViewAllTasks = user?.role === 'hr_manager' || user?.role === 'team_lead';
-  const scope = canViewAllTasks ? selectedView : 'my';
+  const canToggleTeamTasks = ['hr_manager', 'team_lead', 'employee'].includes(user?.role);
+  const userTeamId = user?.teamId?._id || user?.teamId;
+  const scope = !canToggleTeamTasks || selectedView === 'my' ? 'my' : canViewAllTasks ? 'all' : 'team';
   const status = tabStatuses[selectedTab];
   useEffect(() => {
     const timer = setTimeout(() => setFilters({ search: searchQuery }), 350);
@@ -44,22 +46,28 @@ const TaskScreen = () => {
   }, [searchQuery, setFilters]);
   const load = useCallback(async () => {
     if (!user || authLoading) return;
-    try { await fetchTaskPage(scope, { ...filters, page: 1, status }); }
+    try { await fetchTaskPage(scope, { ...filters, ...(scope === 'team' ? { teamId: userTeamId } : {}), page: 1, status }); }
     catch { /* Store supplies the visible retry state. */ }
-  }, [user, authLoading, fetchTaskPage, scope, status, filters]);
+  }, [user, authLoading, fetchTaskPage, scope, userTeamId, status, filters]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
   useFocusEffect(useCallback(() => {
-    if (user && !authLoading) fetchTaskStats().catch(() => {});
-  }, [user, authLoading, fetchTaskStats]));
+    if (!user || authLoading) return;
+    if (scope === 'my') {
+      fetchTaskStats().catch(() => {});
+    } else {
+      fetchTeamTaskStats({ scope: user.role === 'hr_manager' ? 'all' : 'team', ...(userTeamId ? { teamId: userTeamId } : {}) }).catch(() => {});
+    }
+  }, [user, authLoading, scope, userTeamId, fetchTaskStats, fetchTeamTaskStats]));
   const refresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
   const loadMore = async () => {
     if (!hasMore || isLoading || loadingMore.current) return;
     loadingMore.current = true;
-    try { await fetchTaskPage(scope, { page: page + 1, status }); }
+    try { await fetchTaskPage(scope, { ...(scope === 'team' ? { teamId: userTeamId } : {}), page: page + 1, status }); }
     catch { /* Store supplies error message. */ }
     finally { loadingMore.current = false; }
   };
-  const data = scope === 'my' ? myTasks : tasks;
+  const data = scope === 'my' ? myTasks : scope === 'team' ? teamTasks : tasks;
+  const activeStats = scope === 'my' ? taskStats : teamTaskStats;
   if (authLoading || !user) return <View style={styles.fullScreenLoading}><ActivityIndicator color={Colors.primary} /></View>;
   const openView = name => navigation.navigate(name, name === 'KanbanBoard' ? { teamId: user.teamId?._id || user.teamId } : { scope: 'self' });
   return <SafeAreaView edges={['left', 'right']} style={{ flex: 1, backgroundColor: Colors.secondary }}>
@@ -77,17 +85,27 @@ const TaskScreen = () => {
         <View style={styles.summaryCard}>
           <Text style={styles.headerText}>Your tasks</Text>
           <TextInput style={styles.searchInput} value={searchQuery} onChangeText={setSearchQuery} placeholder="Search title, description or tags" />
-          {canViewAllTasks && <View style={styles.viewToggle}>{['my', 'all'].map(value =>
-            <TouchableOpacity key={value} style={[styles.viewButton, scope === value && styles.activeViewButton]} onPress={() => setSelectedView(value)}>
-              <Text style={scope === value ? styles.activeViewButtonText : styles.viewButtonText}>{value === 'my' ? 'My Tasks' : user.role === 'hr_manager' ? 'All Tasks' : 'Team Tasks'}</Text>
+          {canToggleTeamTasks && <View style={styles.viewToggle}>{['my', 'all'].map(value =>
+            <TouchableOpacity key={value} style={[styles.viewButton, selectedView === value && styles.activeViewButton]} onPress={() => setSelectedView(value)}>
+              <Text style={selectedView === value ? styles.activeViewButtonText : styles.viewButtonText}>{value === 'my' ? 'My Tasks' : user.role === 'hr_manager' ? 'All Tasks' : 'Team Tasks'}</Text>
             </TouchableOpacity>)}</View>}
         </View>
-        {scope === 'my' && <TaskStatusCard compact todoCount={taskStats?.todo || 0} inProgressCount={taskStats?.in_progress || 0} inReviewCount={taskStats?.in_review || 0} doneCount={taskStats?.done || 0} />}
-        <View style={styles.viewModes}>
-          <Text style={{ color: Colors.primary }}>List</Text>
-          {canManageTasks() && <TouchableOpacity onPress={() => openView('KanbanBoard')}><Text>Board</Text></TouchableOpacity>}
-          <TouchableOpacity onPress={() => openView('TaskCalendar')}><Text>Calendar</Text></TouchableOpacity>
-          <TouchableOpacity onPress={() => openView('TaskTimeline')}><Text>Timeline</Text></TouchableOpacity>
+        <TaskStatusCard compact todoCount={activeStats?.todo || 0} inProgressCount={activeStats?.in_progress || 0} inReviewCount={activeStats?.in_review || 0} doneCount={activeStats?.done || 0} />
+        <View style={styles.tabsContainer}>
+          <TouchableOpacity style={[styles.tab, styles.activeTab]}>
+            <Text style={[styles.tabText, styles.activeTabText]}>List</Text>
+          </TouchableOpacity>
+          {canManageTasks() && (
+            <TouchableOpacity style={styles.tab} onPress={() => openView('KanbanBoard')}>
+              <Text style={styles.tabText}>Board</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={styles.tab} onPress={() => openView('TaskCalendar')}>
+            <Text style={styles.tabText}>Calendar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.tab} onPress={() => openView('TaskTimeline')}>
+            <Text style={styles.tabText}>Timeline</Text>
+          </TouchableOpacity>
         </View>
         {canViewAllTasks && <TouchableOpacity accessibilityRole="button" onPress={() => navigation.navigate('Approvals')} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: Colors.primary }}>Approvals &amp; Reviews{approvalCount !== null ? ` (${approvalCount})` : ''}</Text></TouchableOpacity>}
         <TaskFilterBar style={styles.filters} filters={filters} onChange={setFilters} onReset={() => { resetFilters(); setSearchQuery(''); }} />

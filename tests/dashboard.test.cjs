@@ -37,18 +37,22 @@ const range = { startDate: '2026-09-01', endDate: '2026-10-22' };
 test('401 invalidates the matching session but preserves a newer account session', async () => {
   const values = new Map([['authToken', 'new-token'], ['user', 'new-user']]);
   let rejectResponse;
-  const api = loader({
+  const authLoad = loader({
     axios: { create: () => ({ interceptors: { request: { use: () => {} }, response: { use: (_, reject) => { rejectResponse = reject; } } } }) },
-    '@react-native-async-storage/async-storage': { getItem: async (key) => values.get(key), removeItem: async (key) => values.delete(key) },
+    'react-native': { Platform: { OS: 'web' } },
+    'expo-secure-store': {},
+    '@react-native-async-storage/async-storage': { getItem: async key => values.get(key), setItem: async (key, value) => values.set(key, value), removeItem: async key => values.delete(key), multiRemove: async keys => keys.forEach(key => values.delete(key)) },
     [path.resolve(__dirname, '../src/config/api.config.js')]: { BASE_URL: 'http://localhost/api', TIMEOUT: 1000 },
-  })('src/services/api.js');
+  });
+  const api = authLoad('src/services/api.js');
+  const authStorage = authLoad('src/utils/authStorage.js');
   let expired = 0;
   const unsubscribe = api.subscribeSessionExpired(() => { expired += 1; });
-  const error = (token) => ({ response: { status: 401, data: { error: 'expired' } }, config: { headers: { Authorization: `Bearer ${token}` } } });
+  const error = (token) => ({ response: { status: 401, data: { error: 'expired' } }, config: { url: '/dashboard', _retry: true, _accessToken: token, _authGeneration: 0, headers: { Authorization: `Bearer ${token}` } } });
   await assert.rejects(rejectResponse(error('old-token')));
-  assert.equal(values.get('authToken'), 'new-token'); assert.equal(expired, 0);
+  assert.equal(await authStorage.getToken(), 'new-token'); assert.equal(expired, 0);
   await assert.rejects(rejectResponse(error('new-token')));
-  assert.equal(values.has('authToken'), false); assert.equal(values.has('user'), false); assert.equal(expired, 1);
+  assert.equal(await authStorage.getToken(), null); assert.equal(values.has('user'), false); assert.equal(expired, 1);
   unsubscribe();
 });
 

@@ -1,5 +1,5 @@
 import { useAuth } from '@/src/contexts/authContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { authorizedFetch, getValidAccessToken } from '../../services/tokenManager';
 import * as DocumentPicker from 'expo-document-picker';
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Platform
@@ -157,7 +157,7 @@ const CreateTaskScreen = ({ navigation, route }) => {
     try {
       console.log('Starting file upload for', files.length, 'files');
       
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await getValidAccessToken();
       const formData = new FormData();
       
       files.forEach((file) => {
@@ -173,7 +173,7 @@ const CreateTaskScreen = ({ navigation, route }) => {
       const uploadUrl = `${API_URL}/tasks/${taskId}/attachments/bulk`;
       console.log('Upload URL:', uploadUrl);
       
-      const uploadResponse = await fetch(uploadUrl, {
+      const uploadResponse = await authorizedFetch(uploadUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
