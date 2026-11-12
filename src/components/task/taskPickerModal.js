@@ -11,17 +11,19 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
+import { getTaskStatus, taskStatusMap } from '../../utils/taskStatusMap';
 
 const PRIMARY = '#5B4EF8';
 
-// Status chip styling; label text comes from the real task status.
-const STATUS_META = {
-  todo: { label: 'To Do', color: '#2563EB', bg: '#E0EAFF', icon: 'dot' },
-  in_progress: { label: 'In Progress', color: '#9333EA', bg: '#F3E8FF', icon: 'flag' },
-  in_review: { label: 'In Review', color: '#16A34A', bg: '#DCFCE7', icon: 'clock' },
-  done: { label: 'Done', color: '#4F46E5', bg: '#E0E7FF', icon: 'dot' },
+const statusMeta = status => {
+  const meta = getTaskStatus(status);
+  return {
+    label: taskStatusMap[status] ? meta.label : status || 'Unknown',
+    color: meta.color,
+    bg: meta.bgColor,
+    icon: status === 'in_review' ? 'clock' : status === 'in_progress' ? 'flag' : 'dot',
+  };
 };
-const statusMeta = status => STATUS_META[status] || { label: status || 'Unknown', color: '#64748B', bg: '#F1F5F9', icon: 'dot' };
 
 // No sequential task number exists in the model; derive a short, stable code from the real id.
 export const shortTaskCode = id => `#T-${String(id || '').slice(-4).toUpperCase()}`;

@@ -118,35 +118,7 @@ export function TaskHierarchyCard({ task, childTasks, loading, error, onRetry, d
   </View>;
 }
 
-// Decorative tag colors reuse the existing brand and task-status palette.
-const tagColors = [
-  { backgroundColor: Colors.frame, color: Colors.primary },
-  { backgroundColor: getTaskStatus('in_progress').bgColor, color: getTaskStatus('in_progress').color },
-  { backgroundColor: getTaskStatus('done').bgColor, color: getTaskStatus('done').color },
-];
-
-export function TaskTagsCard({ tags, disabled, onEdit }) {
-  return <View style={styles.card}>
-    <CardHeader icon="tag" title="Tags" subtitle="Categorize your task" />
-    {!tags.length && <Text style={styles.emptyText}>No tags yet</Text>}
-    <View style={styles.tags}>
-      {tags.map((tag, index) => {
-        const palette = tagColors[index % tagColors.length];
-        return <TouchableOpacity key={tag} accessibilityRole="button" accessibilityLabel={`Edit tag ${tag}`}
-          accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onEdit} activeOpacity={0.7}
-          style={[styles.tagTarget, disabled && styles.disabled]}>
-          <View style={[styles.tagPill, { backgroundColor: palette.backgroundColor }]}>
-            <Text style={[styles.tagText, { color: palette.color }]}>{tag}</Text>
-          </View>
-        </TouchableOpacity>;
-      })}
-      <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled}
-        onPress={onEdit} activeOpacity={0.7} style={[styles.tagTarget, disabled && styles.disabled]}>
-        <View style={[styles.tagPill, styles.addTag]}><Icon name="plus" size={14} /><Text style={styles.tagText}>Add tag</Text></View>
-      </TouchableOpacity>
-    </View>
-  </View>;
-}
+export { default as TaskTagsCard } from './taskTagsCard';
 
 const styles = StyleSheet.create({
   card: { marginHorizontal: 16, marginTop: 12, padding: 16, borderRadius: 12, backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.frame },
@@ -177,10 +149,5 @@ const styles = StyleSheet.create({
   childrenHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, gap: 8 },
   childList: { gap: 8 },
   loading: { paddingVertical: 12 },
-  tags: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 6 },
-  tagTarget: { minHeight: 44, maxWidth: '100%', justifyContent: 'center' },
-  tagPill: { borderRadius: 24, paddingHorizontal: 10, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  tagText: { fontSize: 12, lineHeight: 17, fontWeight: '500', color: Colors.primary, flexShrink: 1 },
-  addTag: { borderWidth: 1, borderColor: Colors.primary },
   disabled: { opacity: 0.5 },
 });

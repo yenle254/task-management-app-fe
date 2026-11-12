@@ -15,9 +15,13 @@ function load(file, deps) {
 const Colors = load('src/styles/color.js', {}).default;
 const statuses = load('src/utils/taskStatusMap.js', Object.fromEntries(['todo','inprogress','done'].map(n => ['../../assets/icons/'+n+'.svg', () => null])));
 const svg = tag => ({accessible, ...props}) => React.createElement(tag, props);
+const TaskTagsCard = load('src/components/task/taskTagsCard.js', {
+  'react-native': RN, 'react-native-svg': {__esModule: true, default: svg('svg'), Circle: svg('circle'), Path: svg('path')},
+  '../../styles/color': Colors, '../../utils/taskStatusMap': statuses
+}).default;
 const cards = load('src/components/task/taskRelationshipCards.js', {
   'react-native': RN, 'react-native-svg': {__esModule: true, default: svg('svg'), Circle: svg('circle'), Path: svg('path')},
-  '../../styles/color': Colors, '../../utils/taskStatusMap': statuses, '../../services/taskService': {}
+  '../../styles/color': Colors, '../../utils/taskStatusMap': statuses, '../../services/taskService': {}, './taskTagsCard': TaskTagsCard
 });
 const baseTask = {_id: 'sample', parentTaskId: {_id: 'parent', title: 'Project Website Redesign', status: 'in_progress'}};
 const childTasks = [{_id:'a',title:'Design Landing Page',status:'done'}, {_id:'b',title:'Implement API',status:'in_progress'}, {_id:'c',title:'Accessibility review',status:'in_review'}];

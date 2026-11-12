@@ -696,7 +696,7 @@ const EditTaskScreen = () => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent} showsVerticalScrollIndicator={false}>
+      <ScrollView keyboardShouldPersistTaps="handled" style={styles.scrollView} contentContainerStyle={styles.scrollViewContent} showsVerticalScrollIndicator={false}>
         <View style={styles.contentWrapper}>
           <View style={styles.content}>
             {/* Attachments */}
