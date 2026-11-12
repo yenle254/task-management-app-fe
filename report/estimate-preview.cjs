@@ -8,7 +8,7 @@ function load(file,deps={}) {
  new Function('require','module','exports',code)(n=>n in deps?deps[n]:require(n),m,m.exports);return m.exports;
 }
 const Colors=load('src/styles/color.js').default;
-const advanced=load('src/components/task/advancedTaskFields.js',{'react-native':RN,'./taskFormFields':{},'../taskCategory':()=>null,'../appButton':()=>null});
+const advanced=load('src/components/task/advancedTaskFields.js',{'react-native':RN,'./taskFormFields':{},'./taskTagsCard':()=>null,'../../styles/color':Colors});
 const svg=tag=>({accessible,...props})=>React.createElement(tag,props);
 const Modal=({visible,children})=>visible?React.createElement(RN.View,{style:{position:'absolute',inset:0}},children):null;
 const EstimateModal=load('src/components/task/estimateModal.js',{'react-native':{...RN,Modal},'react-native-safe-area-context':{SafeAreaView:RN.View},'react-native-svg':{__esModule:true,default:svg('svg'),Circle:svg('circle'),Path:svg('path')},'../../styles/color':Colors,'./advancedTaskFields':advanced}).default;

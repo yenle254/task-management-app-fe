@@ -11,6 +11,8 @@ import MemberSelector from './memberSelector';
 import TaskPickerModal from './taskPickerModal';
 import EstimateModal from './estimateModal';
 import LogTimeModal from './logTimeModal';
+import ChecklistEntryModal from './checklistEntryModal';
+import TaskDependenciesCard from './taskDependenciesCard';
 import Avatar from '../avatar';
 import { TaskHierarchyCard, TaskTagsCard } from './taskRelationshipCards';
 import Colors from '../../styles/color';
@@ -170,6 +172,8 @@ export default function TaskAdvancedSections({ task, navigation }) {
     (sum, cl) => sum + (cl.items || []).filter(item => item.isCompleted).length,
     0
   );
+  const addingChecklist = form?.title === 'Add checklist' || form?.title === 'Add checklist item';
+  const checklistField = form?.title === 'Add checklist item' ? 'text' : 'title';
   return <View>
     {locked && <Text style={{ margin: 16 }}>Content is locked while awaiting review. Comments remain available.</Text>}
     {(loading || busy) && <ActivityIndicator color={Colors.primary} />}
@@ -199,18 +203,17 @@ export default function TaskAdvancedSections({ task, navigation }) {
       </View>)}
       <Action disabled={busy || locked} onPress={showWatchers}>Add watcher</Action>
     </Section>
-    <Section title="Dependencies">
-      {(dependencies.blocking.length > 0 || (task.dependencies?.length || 0) > dependencies.blockedBy.length) &&
-        <Text style={{ color: '#b42318' }}>This task is blocked by unfinished or unavailable dependencies.</Text>}
-      {!task.dependencies?.length && <Text>No dependencies</Text>}
-      {dependencies.blockedBy.map(item => <View key={item._id}>
-        <Action onPress={() => navigation.push('TaskDetail', { taskId: item._id })}>{item.title} · {item.status}</Action>
-        <Action disabled={busy || locked} onPress={() => run(() => store.removeDependency(task._id, item._id))}>Remove dependency</Action>
-      </View>)}
-      {(task.dependencies || []).filter(id => !dependencies.blockedBy.some(item => item._id === keyOf(id))).map(id =>
-        <Action key={keyOf(id)} disabled={busy || locked} onPress={() => run(() => store.removeDependency(task._id, keyOf(id)))}>Remove unavailable dependency</Action>)}
-      <Action disabled={busy || locked} onPress={() => { setPicker('dependency'); setCandidateSearch(''); }}>Add dependency</Action>
-    </Section>
+    <TaskDependenciesCard
+      dependencyIds={task.dependencies || []}
+      dependencies={dependencies}
+      loading={loading}
+      error={error}
+      disabled={busy || locked}
+      onRetry={reload}
+      onOpenTask={taskId => navigation.push('TaskDetail', { taskId })}
+      onRemove={dependencyId => run(() => store.removeDependency(task._id, dependencyId))}
+      onAdd={() => { setPicker('dependency'); setCandidateSearch(''); }}
+    />
 
     {/* Checklist Card */}
     <View style={styles.card}>
@@ -476,10 +479,20 @@ export default function TaskAdvancedSections({ task, navigation }) {
       onClose={() => setForm(null)}
       onSave={async () => { if (await run(() => form.submit(values))) setForm(null); }}
     />}
-    <Modal visible={!!form && !['Estimate', 'Log time'].includes(form.title)} animationType="slide" onRequestClose={() => setForm(null)}>
-      <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 56 }}>
+    {addingChecklist && <ChecklistEntryModal
+      visible
+      item={form.title === 'Add checklist item'}
+      value={values[checklistField] || ''}
+      onChangeText={text => setValues({ ...values, [checklistField]: text })}
+      busy={busy}
+      locked={locked}
+      onClose={() => setForm(null)}
+      onAdd={async text => { if (await run(() => form.submit({ ...values, [checklistField]: text }))) setForm(null); }}
+    />}
+    <Modal visible={!!form && !addingChecklist && !['Estimate', 'Log time'].includes(form.title)} animationType="slide" onRequestClose={() => setForm(null)}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingTop: 56 }}>
         <Text style={{ fontSize: 22, marginBottom: 20 }}>{form?.title}</Text>
-        {form?.title === 'Edit tags' && <TagInput tags={values.tags} onChange={tags => setValues({ tags })} />}
+        {form?.title === 'Edit tags' && <TagInput tags={values.tags} disabled={busy || locked} onChange={tags => setValues({ tags })} />}
         {form?.fields.map(field => <FormInput key={field} label={field} value={values[field] || ''} onChangeText={text => setValues({ ...values, [field]: text })} />)}
         <Action disabled={busy || locked} onPress={async () => { if (await run(() => form.submit(values))) setForm(null); }}>Save</Action>
         <Action disabled={busy || locked} onPress={() => setForm(null)}>Cancel</Action>

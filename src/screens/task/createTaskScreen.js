@@ -759,6 +759,7 @@ const CreateTaskScreen = ({ navigation, route }) => {
 
       <ScrollView
         style={styles.scrollView}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.scrollViewContent}
         showsVerticalScrollIndicator={false}
       >

@@ -62,34 +62,15 @@ const formatShortRange = (start, end) => {
   return `${startStr} – ${endStr}`;
 };
 
-const BAR_PALETTE = [
-  { bg: '#B4D0FD', text: '#1E293B' },
-  { bg: '#B7EDD5', text: '#064E3B' },
-  { bg: '#FCD59C', text: '#451A03' },
-  { bg: '#D6C7FF', text: '#2E1065' },
-];
-
-const getBarColors = (task, idx) => {
-  if (task.status === 'done') return { bg: '#B7EDD5', text: '#064E3B' };
-  if (task.status === 'todo') return { bg: '#FCD59C', text: '#451A03' };
-  if (task.status === 'in_review') return { bg: '#D6C7FF', text: '#2E1065' };
-  return BAR_PALETTE[idx % BAR_PALETTE.length];
+const getBarColors = task => {
+  const status = getTaskStatus(task.status);
+  return { bg: status.bgColor, text: status.color };
 };
 
 const getRowMeta = (task, todayKey) => {
   const dueKey = task.dueDate ? dateKey(new Date(task.dueDate)) : '';
   const isDueToday = dueKey === todayKey && task.status !== 'done';
 
-  if (task.status === 'done') {
-    return {
-      border: '#4ADE80',
-      text: '#16A34A',
-      label: 'Done',
-      detailLabel: 'Done',
-      icon: 'dot',
-      detailIcon: 'flag',
-    };
-  }
   if (isDueToday) {
     const d = new Date(task.dueDate);
     const hours = d.getHours();
@@ -107,32 +88,13 @@ const getRowMeta = (task, todayKey) => {
       detailIcon: 'clock',
     };
   }
-  if (task.status === 'in_progress') {
-    return {
-      border: '#60A5FA',
-      text: '#3B82F6',
-      label: 'In Progress',
-      detailLabel: 'In Progress',
-      icon: 'dot',
-      detailIcon: 'flag',
-    };
-  }
-  if (task.status === 'in_review') {
-    return {
-      border: '#818CF8',
-      text: '#6366F1',
-      label: 'In Review',
-      detailLabel: 'In Review',
-      icon: 'dot',
-      detailIcon: 'flag',
-    };
-  }
+  const status = getTaskStatus(task.status);
   return {
-    border: '#FBBF24',
-    text: '#F59E0B',
-    label: 'To Do',
-    detailLabel: 'To Do',
-    icon: 'flag',
+    border: status.color,
+    text: status.color,
+    label: status.label,
+    detailLabel: status.label,
+    icon: task.status === 'todo' ? 'flag' : 'dot',
     detailIcon: 'flag',
   };
 };
@@ -515,7 +477,7 @@ export default function TaskTimelineScreen({ navigation, route }) {
           ) : (
             rows.map((task, idx) => {
               const meta = getRowMeta(task, todayKey);
-              const barColor = getBarColors(task, idx);
+              const barColor = getBarColors(task);
               const span = getBarSpan(task);
               const isDone = task.status === 'done';
 

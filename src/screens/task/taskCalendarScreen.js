@@ -21,28 +21,13 @@ import Colors from '../../styles/color';
 const STATUS_FILTERS = [null, 'todo', 'in_progress', 'in_review', 'done'];
 const AVATAR_KEYS = ['avt1', 'avt2', 'avt3'];
 
-const getDotColor = (status, idx = 0) => {
-  if (status === 'in_progress') return '#5B4EF8';
-  if (status === 'todo') return '#F59E0B';
-  if (status === 'in_review') return '#0EA5E9';
-  if (status === 'done') return '#22C55E';
-  const palette = ['#5B4EF8', '#F59E0B', '#0EA5E9', '#22C55E'];
-  return palette[idx % palette.length];
-};
+const getDotColor = status => getTaskStatus(status).color;
 
 const getCardAccent = (task, selectedKey) => {
   const todayKey = dateKey(new Date());
   const dueKey = task.dueDate ? dateKey(new Date(task.dueDate)) : '';
   const isDueToday = dueKey === todayKey && selectedKey === todayKey && task.status !== 'done';
 
-  if (task.status === 'done') {
-    return {
-      border: '#86EFAC',
-      text: '#16A34A',
-      label: 'Done',
-      icon: 'flag',
-    };
-  }
   if (isDueToday) {
     const d = new Date(task.dueDate);
     const hours = d.getHours();
@@ -58,26 +43,11 @@ const getCardAccent = (task, selectedKey) => {
       icon: 'clock',
     };
   }
-  if (task.status === 'in_progress') {
-    return {
-      border: '#60A5FA',
-      text: '#5B4EF8',
-      label: 'In Progress',
-      icon: 'flag',
-    };
-  }
-  if (task.status === 'in_review') {
-    return {
-      border: '#818CF8',
-      text: '#0284C7',
-      label: 'In Review',
-      icon: 'flag',
-    };
-  }
+  const status = getTaskStatus(task.status);
   return {
-    border: '#FBBF24',
-    text: '#F59E0B',
-    label: 'To Do',
+    border: status.color,
+    text: status.color,
+    label: status.label,
     icon: 'flag',
   };
 };
@@ -486,7 +456,7 @@ export default function TaskCalendarScreen({ navigation, route }) {
                           key={`${task._id}-${idx}`}
                           style={[
                             styles.dot,
-                            { backgroundColor: getDotColor(task.status, idx) },
+                            { backgroundColor: getDotColor(task.status) },
                           ]}
                         />
                       ))}

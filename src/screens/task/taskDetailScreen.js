@@ -7,7 +7,6 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, RefreshContro
 import { SafeAreaView } from "react-native-safe-area-context";
 import EditIcon from "../../../assets/icons/edit.svg";
 import TrashIcon from "../../../assets/icons/trash.svg";
-import { CategoryMap, DefaultCategory } from "../../utils/categoryMapping";
 import useTaskStore from "../../../store/taskStore";
 import HeaderWithBackButton from "../../components/headerWithBackButton";
 import AddComment from "../../components/task/addComment";
@@ -159,8 +158,6 @@ const TaskDetailScreen = () => {
       year: "numeric",
     });
 
-  const getStatusConfig = getTaskStatus;
-
   const formatDeadline = (dateString) => {
     if (!dateString) return null;
     const date = new Date(dateString);
@@ -207,9 +204,8 @@ const TaskDetailScreen = () => {
   const locked = selectedTask.status === 'in_review';
   const canToggleSubtasks = !locked && (isAssignedToTask || canManageTask);
   const canAddDeleteSubtasks = !locked && canManageTask;
-  const statusKey = selectedTask.status === "in_progress" ? "inprogress" : selectedTask.status;
-  const StatusIcon = CategoryMap[statusKey] || DefaultCategory;
-  const statusConfig = getStatusConfig(selectedTask.status);
+  const statusConfig = getTaskStatus(selectedTask.status);
+  const StatusIcon = statusConfig.icon;
 
   const imageAttachments = (selectedTask.attachments || [])
     .filter((att) =>
@@ -277,8 +273,8 @@ const TaskDetailScreen = () => {
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
               <Text style={styles.infoLabelInline}>Status:</Text>
-              <View style={[styles.infoBadge, { backgroundColor: Colors.primary }]}>
-                <Text style={styles.badgeTextSmall}>{statusConfig.label}</Text>
+              <View style={[styles.infoBadge, { backgroundColor: statusConfig.bgColor }]}>
+                <Text style={[styles.badgeTextSmall, { color: statusConfig.color }]}>{statusConfig.label}</Text>
               </View>
             </View>
 
@@ -421,9 +417,9 @@ const TaskDetailScreen = () => {
 
             </View>
           ) : (
-            <View style={[styles.statusBadge, { backgroundColor: Colors.primary, alignSelf: "flex-start" }]}>
-              <StatusIcon width={18} height={18} fill="#FFF" style={{ marginRight: 6 }} />
-              <Text style={styles.statusBadgeText}>{statusConfig.label}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: statusConfig.bgColor, alignSelf: "flex-start" }]}>
+              <StatusIcon width={18} height={18} style={{ marginRight: 6 }} />
+              <Text style={[styles.statusBadgeText, { color: statusConfig.color }]}>{statusConfig.label}</Text>
             </View>
           )}
         </View>
