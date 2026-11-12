@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Alert,
   Dimensions,
@@ -17,9 +17,13 @@ import PdfIcon from "../../../assets/icons/todo.svg";
 import DownloadIcon from "../../../assets/icons/user.svg";
 import Colors from "../../styles/color";
 
+import { usePrivatePreviews } from '../../utils/usePrivatePreviews';
+import { getPreviewUrl } from '../../services/fileService';
+
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-const AttachmentList = ({ attachments = [] }) => {
+const AttachmentList = ({ attachments = [], onDelete, onOpenFile, onImagePress }) => {
+  const previewUrls = usePrivatePreviews(attachments);
   const [modalVisible, setModalVisible] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -35,8 +39,8 @@ const AttachmentList = ({ attachments = [] }) => {
 
   const safeAttachments = Array.isArray(attachments) ? attachments : [];
 
-  const images = safeAttachments.filter(isImage).slice(0, 5);
-  const files = safeAttachments.filter((att) => !isImage(att));  const panResponder = useRef(
+  const images = safeAttachments.filter(isImage).map(att => ({ ...att, url: previewUrls[att.url] || '' }));
+  const files = safeAttachments.filter((att) => !isImage(att));  const panResponder = useMemo(() => (
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderRelease: (evt, gestureState) => {
@@ -48,9 +52,10 @@ const AttachmentList = ({ attachments = [] }) => {
         }
       },
     })
-  ).current;
+  ), [currentIndex, images.length]);
 
   const openImageModal = (index) => {
+    if (onImagePress) return onImagePress(images, index);
     setCurrentIndex(index);
     setModalVisible(true);
   };
@@ -61,6 +66,8 @@ const AttachmentList = ({ attachments = [] }) => {
 
   const handleOpenFile = async (url) => {
     try {
+      url = await getPreviewUrl(url);
+      if (!url) throw new Error('Please sign in');
       const supported = await Linking.canOpenURL(url);
       if (supported) await Linking.openURL(url);
       else Alert.alert("Error", "Cannot open this file");
@@ -77,7 +84,7 @@ const AttachmentList = ({ attachments = [] }) => {
         <View style={styles.imageSection}>
           <TouchableOpacity onPress={() => openImageModal(0)}>
             <Image
-              source={{ uri: images[0].url }}
+              source={images[0].url ? { uri: images[0].url } : undefined}
               style={styles.mainImage}
               resizeMode="cover"
             />
@@ -97,7 +104,7 @@ const AttachmentList = ({ attachments = [] }) => {
                     onPress={() => openImageModal(idx)}
                     style={styles.thumbnailWrapper}
                   >
-                    <Image source={{ uri: att.url }} style={styles.thumbnail} />
+                    <Image source={att.url ? { uri: att.url } : undefined} style={styles.thumbnail} />
                     {idx === 4 && images.length > 5 && (
                       <View style={styles.moreOverlay}>
                         <Text style={styles.moreText}>
@@ -126,7 +133,7 @@ const AttachmentList = ({ attachments = [] }) => {
               <TouchableOpacity
                 key={i}
                 style={styles.fileItem}
-                onPress={() => handleOpenFile(att.url)}
+                onPress={() => onOpenFile ? onOpenFile(att.url, att.name, att._id) : handleOpenFile(att.url)}
               >
                 <View style={styles.fileInfo}>
                   {isPdf ? (
@@ -148,7 +155,12 @@ const AttachmentList = ({ attachments = [] }) => {
         </View>
       )}
 
-      <Modal visible={modalVisible} transparent={true} animationType="fade">
+      {onDelete && safeAttachments.map(att => <TouchableOpacity key={att._id} onPress={() => onDelete(att._id)}
+        style={{ padding: 12 }} accessibilityLabel={'Delete attachment ' + att.name}>
+        <Text style={{ color: '#b42318' }}>Delete {att.name}</Text>
+      </TouchableOpacity>)}
+
+      <Modal onRequestClose={() => setModalVisible(false)} visible={modalVisible} transparent={true} animationType="fade">
         <View style={styles.modalOverlay}>
           <TouchableOpacity
             style={styles.closeButton}
@@ -159,7 +171,7 @@ const AttachmentList = ({ attachments = [] }) => {
 
           <View style={styles.imageContainer} {...panResponder.panHandlers}>
             <Image
-              source={{ uri: images[currentIndex]?.url }}
+              source={images[currentIndex]?.url ? { uri: images[currentIndex].url } : undefined}
               style={styles.fullImage}
               resizeMode="contain"
             />

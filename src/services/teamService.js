@@ -1,6 +1,11 @@
 import apiClient from './api';
+import { dateRange, pickParams, trendParams } from '../utils/dashboardFilters';
 
 const teamService = {
+  getMemberProgress: (teamId, filters = {}) => apiClient.get(`/teams/${teamId}/members/progress`, { params: dateRange(filters) }),
+  getPerformance: (teamId) => apiClient.get(`/teams/${teamId}/performance`),
+  getPerformanceTrend: (teamId, filters = {}) => apiClient.get(`/teams/${teamId}/performance-trends`, { params: pickParams(trendParams(filters), ['startDate', 'endDate', 'period']) }),
+  getOverdue: (teamId, filters = {}) => apiClient.get(`/teams/${teamId}/overdue`, { params: pickParams(filters, ['page', 'limit']) }),
 
   /**
    * Create a new team

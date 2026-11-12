@@ -25,13 +25,23 @@ const MonthlyLeaveChart = ({ data }) => {
       <LineChart
         data={chartData}
         width={screenWidth - 48}
-        height={200}
+        height={210}
         chartConfig={{
           ...baseChartConfig,
           color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
+          fillShadowGradientFrom: "#EF4444",
+          fillShadowGradientFromOpacity: 0.22,
+          fillShadowGradientTo: "#FFFFFF",
+          fillShadowGradientToOpacity: 0.02,
+          propsForDots: {
+            ...baseChartConfig.propsForDots,
+            stroke: "#EF4444",
+          },
         }}
         bezier
         fromZero
+        withInnerLines
+        withVerticalLines={false}
         style={styles.chart}
       />
     </ChartContainer>

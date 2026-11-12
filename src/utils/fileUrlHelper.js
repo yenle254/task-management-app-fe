@@ -22,3 +22,22 @@ export const getAbsoluteFileUrl = (fileUrl) => {
   
   return fileUrl;
 };
+
+// Only attach credentials to the configured backend's private file routes.
+export const isPrivateFileUrl = (fileUrl) => {
+  try {
+    const url = new URL(getAbsoluteFileUrl(fileUrl));
+    const api = new URL(API_CONFIG.BASE_URL);
+    return url.origin === api.origin && !url.username && !url.password &&
+      /^\/(uploads|api\/files)\/[^/]+$/.test(url.pathname);
+  } catch { return false; }
+};
+
+export const getAuthenticatedFileUrl = (fileUrl, token) => {
+  const absolute = getAbsoluteFileUrl(fileUrl);
+  if (!isPrivateFileUrl(absolute)) return absolute;
+  if (!token) return ''; // Do not issue anonymous previews while storage is loading.
+  const url = new URL(absolute);
+  url.searchParams.set('access_token', token);
+  return url.toString();
+};

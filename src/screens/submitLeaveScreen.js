@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, Pressable, TextInput, Alert, ActivityIndicator, } from "react-native";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Colors from "../styles/color";
 import HeaderWithBackButton from "../components/headerWithBackButton";
 import AppButton from "../components/appButton";
@@ -10,7 +10,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Category from "../../assets/icons/category.svg";
 import Calendar from "../../assets/icons/calendar-2.svg";
 import Delegation from "../../assets/icons/user_delegation.svg";
-import { leaveService } from "../services";
+
 import { useLeaveStore } from "../../store";
 
 const mockLeaveCategories = [
@@ -19,14 +19,18 @@ const mockLeaveCategories = [
   { id: 3, name: "Personal Leave", value: "personal", days: 12 },
 ];
 
-const SubmitLeaveScreen = ({ navigation }) => {
-  const { leaves, fetchLeaves } = useLeaveStore();
+const SubmitLeaveScreen = ({ navigation, route }) => {
+  const [existing, setExisting] = useState(route?.params?.leave);
+  const submitGuard = useRef(false);
+  const requestKey = useRef(`leave_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  const [submitError, setSubmitError] = useState("");
+  const { leaves, fetchLeaves, leaveBalance, fetchLeaveBalance, submitLeave, submitDraft, editLeave } = useLeaveStore();
   
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(mockLeaveCategories.find(item => item.value === existing?.type) || null);
   const [selectedDelegate, setSelectedDelegate] = useState(null);
   const [selectedDates, setSelectedDates] = useState({
-    start: null,
-    end: null,
+    start: existing ? new Date(existing.startDate) : null,
+    end: existing ? new Date(existing.endDate) : null,
   });
 
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -39,7 +43,7 @@ const SubmitLeaveScreen = ({ navigation }) => {
   const [tempEndDate, setTempEndDate] = useState(null);
 
   useEffect(() => {
-    fetchLeaves();
+    Promise.allSettled([fetchLeaves(), fetchLeaveBalance()]);
   }, []);
 
   const getDaysInMonth = (date) => {
@@ -108,7 +112,7 @@ const SubmitLeaveScreen = ({ navigation }) => {
     if (!date) return false;
     
     return leaves.some(leave => {
-      if (leave.status !== 'pending' && leave.status !== 'approved') {
+      if (leave._id === existing?._id || !['pending', 'pending_team_lead', 'pending_hr', 'approved'].includes(leave.status)) {
         return false;
       }
       
@@ -308,7 +312,7 @@ const SubmitLeaveScreen = ({ navigation }) => {
 
           <View style={styles.calendarHeader}>
             <Calendar width={20} height={20} />
-            <TouchableOpacity onPress={prevMonth} style={styles.monthButton}>
+            <TouchableOpacity onPress={prevMonth} accessibilityLabel="Previous month" style={styles.monthButton}>
               <ChevronLeft width={24} height={24} />
             </TouchableOpacity>
             <Text style={styles.monthText}>
@@ -317,7 +321,7 @@ const SubmitLeaveScreen = ({ navigation }) => {
                 year: "numeric",
               })}
             </Text>
-            <TouchableOpacity onPress={nextMonth} style={styles.monthButton}>
+            <TouchableOpacity onPress={nextMonth} accessibilityLabel="Next month" style={styles.monthButton}>
               <ChevronRight width={24} height={24} />
             </TouchableOpacity>
           </View>
@@ -408,26 +412,40 @@ const SubmitLeaveScreen = ({ navigation }) => {
   // const [selectedCountryCode, setSelectedCountryCode] = useState(mockCountryCodes[0]);
   // const [tempCountryCode, setTempCountryCode] = useState(null);
   // const [emergencyContact, setEmergencyContact] = useState("");
-  const [leaveDescription, setLeaveDescription] = useState("");
+  const [leaveDescription, setLeaveDescription] = useState(existing?.reason || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmitLeave = async () => {
+  const reloadLeave = async () => {
+    if (submitGuard.current || !existing) return;
+    try {
+      const response = await useLeaveStore.getState().getLeaveById(existing._id);
+      const current = response.data;
+      if (!['draft', 'pending_team_lead'].includes(current.status)) { navigation.goBack(); return; }
+      setExisting(current);
+      setSelectedCategory(mockLeaveCategories.find(item => item.value === current.type));
+      setSelectedDates({ start: new Date(current.startDate), end: new Date(current.endDate) });
+      setLeaveDescription(current.reason || '');
+      setSubmitError('');
+    } catch (error) { setSubmitError(error?.error || 'Unable to reload leave. Try again.'); }
+  };
+
+  const handleSubmitLeave = async (draft = false) => {
+    if (submitGuard.current) return;
     if (!selectedCategory) {
+      setSubmitError('Please select a leave category');
       Alert.alert('Validation Error', 'Please select a leave category');
       return;
     }
 
     if (!selectedDates.start || !selectedDates.end) {
+      setSubmitError('Please select leave duration');
       Alert.alert('Validation Error', 'Please select leave duration');
       return;
     }
 
-    if (!leaveDescription.trim()) {
-      Alert.alert('Validation Error', 'Please provide a reason for your leave');
-      return;
-    }
-
     try {
+      submitGuard.current = true;
+      setSubmitError("");
       setIsSubmitting(true);
 
       const leaveData = {
@@ -437,29 +455,24 @@ const SubmitLeaveScreen = ({ navigation }) => {
         reason: leaveDescription.trim(),
       };
 
-      const response = await leaveService.submitLeave(leaveData);
+      const response = existing
+        ? await (existing.status === 'draft' ? submitDraft : editLeave)(existing._id, { ...leaveData, revision: existing.revision })
+        : await submitLeave({ ...leaveData, draft, idempotencyKey: requestKey.current });
 
       if (response.success) {
-        Alert.alert(
-          'Success',
-          'Your leave request has been submitted successfully!',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.goBack(),
-            },
-          ]
-        );
+        navigation.goBack();
       } else {
         Alert.alert('Error', response.error || 'Failed to submit leave request');
       }
     } catch (error) {
+      setSubmitError(error?.error || 'Request failed. Refresh the leave if it has changed, then retry.');
       console.error('Submit leave error:', error);
       Alert.alert(
         'Error',
         error.error || 'Failed to submit leave request. Please try again.'
       );
     } finally {
+      submitGuard.current = false;
       setIsSubmitting(false);
     }
   };
@@ -467,7 +480,7 @@ const SubmitLeaveScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <HeaderWithBackButton
-        title="Submit Leave"
+        title={existing ? "Edit Leave" : "Submit Leave"}
         onBackPress={() => navigation.goBack()}
       />
 
@@ -564,9 +577,13 @@ const SubmitLeaveScreen = ({ navigation }) => {
       </ScrollView>
 
       <View style={styles.submitButtonContainer}>
+        {submitError ? <Text accessibilityRole="alert">{submitError}</Text> : null}
+        {submitError && existing ? <AppButton text="Reload leave" onPress={reloadLeave} disabled={isSubmitting} style={styles.submitButton} textStyle={styles.submitButtonText} /> : null}
+        {!existing && <AppButton text="Save Draft" onPress={() => handleSubmitLeave(true)} disabled={isSubmitting}
+          style={[styles.submitButton, { marginBottom: 12 }]} textStyle={styles.submitButtonText} />}
         <AppButton
           text={isSubmitting ? "Submitting..." : "Submit Request"}
-          onPress={handleSubmitLeave}
+          onPress={() => handleSubmitLeave(false)}
           style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
           textStyle={styles.submitButtonText}
           disabled={isSubmitting}
@@ -599,7 +616,7 @@ const SubmitLeaveScreen = ({ navigation }) => {
               >
                 {item.name}
               </Text>
-              <Text style={styles.itemSubtext}>{item.days} days available</Text>
+              <Text style={styles.itemSubtext}>{leaveBalance.remaining} days available (shared balance)</Text>
             </View>
             {isSelected && <View style={styles.selectedIndicator} />}
           </View>

@@ -1,13 +1,12 @@
+import TaskReviewPanel from '../../components/task/taskReviewPanel';
+import { getTaskStatus } from '../../utils/taskStatusMap';
 import { useAuth } from "@/src/contexts/authContext";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import React, { useEffect } from "react";
-import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
+import React, { useCallback, useState } from "react";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import DownloadIcon from "../../../assets/icons/download.svg";
 import EditIcon from "../../../assets/icons/edit.svg";
 import TrashIcon from "../../../assets/icons/trash.svg";
-import { CategoryMap, DefaultCategory } from "../../utils/categoryMapping";
-import { useState } from "react";
 import useTaskStore from "../../../store/taskStore";
 import HeaderWithBackButton from "../../components/headerWithBackButton";
 import AddComment from "../../components/task/addComment";
@@ -15,6 +14,9 @@ import CommentList from "../../components/task/commentList";
 import SubTaskList from "../../components/task/subtaskList";
 import AddSubtaskInput from "../../components/task/addSubtaskInput";
 import SubtaskProgress from "../../components/task/subtaskProgress";
+import AttachmentList from "../../components/task/attachmentList";
+import TaskAdvancedSections from "../../components/task/taskAdvancedSections";
+import { AITaskBreakdownPanel } from "../../../chat_bot";
 import Colors from "../../styles/color";
 import { downloadFile } from "../../utils/downloadHelper";
 import { getAbsoluteFileUrl } from "../../utils/fileUrlHelper";
@@ -24,12 +26,13 @@ const TaskDetailScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { taskId } = route.params;
-  const [downloadingFileId, setDownloadingFileId] = useState(null);
+  const [, setDownloadingFileId] = useState(null);
   const [isAddingSubtask, setIsAddingSubtask] = useState(false);
 
   const { user, canManageTasks } = useAuth();
   const {
     selectedTask,
+    error,
     isLoading,
     fetchTaskById,
     updateTaskStatus,
@@ -39,16 +42,21 @@ const TaskDetailScreen = () => {
     deleteSubtask,
   } = useTaskStore();
 
-  useEffect(() => {
-    fetchTaskById(taskId);
-  }, [taskId]);
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    // Stacked detail screens share selectedTask, so restore this route on focus.
+    fetchTaskById(taskId).catch(error => {
+      if (active) Alert.alert("Task", error?.error || "Failed to load task");
+    });
+    return () => { active = false; };
+  }, [taskId, fetchTaskById]));
 
   const handleStatusUpdate = async (newStatus) => {
     try {
       await updateTaskStatus(taskId, newStatus);
-      fetchTaskById(taskId);
+      await fetchTaskById(taskId);
     } catch (err) {
-      Alert.alert("Error", "Failed to update task status");
+      Alert.alert("Error", err?.error || err.message || "Failed to update task status");
     }
   };
 
@@ -150,15 +158,6 @@ const TaskDetailScreen = () => {
       year: "numeric",
     });
 
-  const getStatusConfig = (status) => {
-    const map = {
-      todo: { label: "To Do", color: "#8E8E93" },
-      in_progress: { label: "In Progress", color: "#007AFF" },
-      done: { label: "Done", color: "#34C759" },
-    };
-    return map[status] || map.todo;
-  };
-
   const formatDeadline = (dateString) => {
     if (!dateString) return null;
     const date = new Date(dateString);
@@ -192,21 +191,21 @@ const TaskDetailScreen = () => {
     return { label, color };
   };
 
-  if (isLoading || !selectedTask) {
+  if (!selectedTask || selectedTask._id !== taskId) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        {error ? <TouchableOpacity onPress={() => fetchTaskById(taskId).catch(() => {})}><Text>{error} · Retry</Text></TouchableOpacity> : <ActivityIndicator size="large" color={Colors.primary} />}
       </View>
     );
   }
 
   const canManageTask = canManageTasks();
   const isAssignedToTask = selectedTask.assignedTo?.some((p) => p._id === user?._id);
-  const canToggleSubtasks = isAssignedToTask || canManageTask;
-  const canAddDeleteSubtasks = canManageTask;
-  const statusKey = selectedTask.status === "in_progress" ? "inprogress" : selectedTask.status;
-  const StatusIcon = CategoryMap[statusKey] || DefaultCategory;
-  const statusConfig = getStatusConfig(selectedTask.status);
+  const locked = selectedTask.status === 'in_review';
+  const canToggleSubtasks = !locked && (isAssignedToTask || canManageTask);
+  const canAddDeleteSubtasks = !locked && canManageTask;
+  const statusConfig = getTaskStatus(selectedTask.status);
+  const StatusIcon = statusConfig.icon;
 
   const imageAttachments = (selectedTask.attachments || [])
     .filter((att) =>
@@ -256,7 +255,7 @@ const TaskDetailScreen = () => {
             {canManageTask && (
               <View style={styles.headerActions}>
                 <TouchableOpacity 
-                  onPress={() => navigation.navigate("EditTask", { taskId })} 
+                  disabled={locked} onPress={() => navigation.navigate("EditTask", { taskId })} 
                   style={styles.actionBtn}
                 >
                   <EditIcon width={20} height={20} />
@@ -274,8 +273,8 @@ const TaskDetailScreen = () => {
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
               <Text style={styles.infoLabelInline}>Status:</Text>
-              <View style={[styles.infoBadge, { backgroundColor: Colors.primary }]}>
-                <Text style={styles.badgeTextSmall}>{statusConfig.label}</Text>
+              <View style={[styles.infoBadge, { backgroundColor: statusConfig.bgColor }]}>
+                <Text style={[styles.badgeTextSmall, { color: statusConfig.color }]}>{statusConfig.label}</Text>
               </View>
             </View>
 
@@ -313,84 +312,14 @@ const TaskDetailScreen = () => {
 
        
 
-        {/* === HIỂN THỊ ẢNH – ĐẸP NHƯ ẢNH MẪU === */}
-        {imageAttachments.length > 0 && (
-          <View style={styles.section}>
-
-            {imageAttachments.length === 1 && (
-              <TouchableOpacity
-                onPress={() => openImageViewer(imageAttachments)}
-                style={styles.singleImageWrapper}
-              >
-                <Image source={{ uri: imageAttachments[0].url }} style={styles.singleImage} resizeMode="cover" />
-              </TouchableOpacity>
-            )}
-
-            {imageAttachments.length === 2 && (
-              <View style={styles.twoImagesRow}>
-                {imageAttachments.map((img, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    onPress={() => openImageViewer(imageAttachments, idx)}
-                    style={styles.twoImageItem}
-                  >
-                    <Image source={{ uri: img.url }} style={styles.twoImage} resizeMode="cover" />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
-            {imageAttachments.length >= 3 && (
-              <View style={styles.threePlusLayout}>
-                {/* Ảnh đầu to */}
-                <TouchableOpacity
-                  onPress={() => openImageViewer(imageAttachments)}
-                  style={styles.mainImageWrapper}
-                >
-                  <Image source={{ uri: imageAttachments[0].url }} style={styles.mainImage} resizeMode="cover" />
-                </TouchableOpacity>
-
-                {/* 2 ảnh nhỏ */}
-                <View style={styles.smallImagesRow}>
-                  {imageAttachments.slice(1, 3).map((img, idx) => (
-                    <TouchableOpacity
-                      key={idx}
-                      onPress={() => openImageViewer(imageAttachments, idx + 1)}
-                      style={styles.smallImageWrapper}
-                    >
-                      <Image source={{ uri: img.url }} style={styles.smallImage} resizeMode="cover" />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* === FILE KHÁC (PDF, DOC...) === */}
-        {fileAttachments.length > 0 && (
-          <View style={styles.section}>
-            {fileAttachments.map((file, idx) => {
-              const filename = file.name || file.url.split("/").pop().split("?")[0];
-              const sizeMB = file.size ? (file.size / 1024 / 1024).toFixed(2) + " MB" : null;
-              
-              return (
-                <TouchableOpacity
-                  key={file._id || idx}
-                  style={styles.fileItem}
-                  onPress={() => handleDownload(file.url, filename, file._id)}
-                >
-                  <DownloadIcon width={28} height={28} fill={Colors.primary} />
-                  <View style={{ flex: 1, marginLeft: 14 }}>
-                    <Text style={styles.fileName} numberOfLines={2}>{filename}</Text>
-                    {sizeMB && <Text style={styles.fileSize}>{sizeMB}</Text>}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
-
+        <AttachmentList attachments={[...imageAttachments, ...fileAttachments]} onOpenFile={handleDownload}
+          onImagePress={openImageViewer} onDelete={attachmentId => Alert.alert('Delete attachment', 'Delete this attachment?', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive', onPress: async () => {
+              try { await useTaskStore.getState().deleteAttachment(taskId, attachmentId); }
+              catch (error) { Alert.alert('Task', error?.error || 'Failed to delete attachment'); }
+            } }
+          ])} />
         {/* Description Box */}
         <View style={styles.section}>
           <View style={styles.descriptionBox}>
@@ -399,6 +328,13 @@ const TaskDetailScreen = () => {
               {selectedTask.description || "No description"}
             </Text>
           </View>
+          <AITaskBreakdownPanel
+            mode="detail"
+            task={selectedTask}
+            canManage={canManageTask}
+            locked={locked}
+            onTaskUpdated={() => fetchTaskById(taskId)}
+          />
         </View>
 
         {/* Assignee */}
@@ -444,9 +380,9 @@ const TaskDetailScreen = () => {
         </View>
 
         {/* Status Checkbox */}
-        {/* <View style={styles.section}>
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Status</Text>
-          {(selectedTask.assignedTo?.some((p) => p._id === user?._id) || canManageTask) ? (
+          {(!locked && (selectedTask.assignedTo?.some((p) => (p._id || p) === user?._id) || (selectedTask.assignedBy?._id || selectedTask.assignedBy) === user?._id || user?.role === 'hr_manager')) ? (
             <View style={styles.statusCheckboxContainer}>
               <TouchableOpacity
                 style={styles.checkboxItem}
@@ -478,28 +414,19 @@ const TaskDetailScreen = () => {
                 <Text style={styles.checkboxLabel}>In Progress</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.checkboxItem}
-                onPress={() => handleStatusUpdate("done")}
-              >
-                <View style={[
-                  styles.checkbox,
-                  selectedTask.status === "done" && styles.checkboxChecked
-                ]}>
-                  {selectedTask.status === "done" && (
-                    <View style={styles.checkboxInner} />
-                  )}
-                </View>
-                <Text style={styles.checkboxLabel}>Done</Text>
-              </TouchableOpacity>
+
             </View>
           ) : (
-            <View style={[styles.statusBadge, { backgroundColor: Colors.primary, alignSelf: "flex-start" }]}>
-              <StatusIcon width={18} height={18} fill="#FFF" style={{ marginRight: 6 }} />
-              <Text style={styles.statusBadgeText}>{statusConfig.label}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: statusConfig.bgColor, alignSelf: "flex-start" }]}>
+              <StatusIcon width={18} height={18} style={{ marginRight: 6 }} />
+              <Text style={[styles.statusBadgeText, { color: statusConfig.color }]}>{statusConfig.label}</Text>
             </View>
           )}
-        </View> */}
+        </View>
+
+        <TaskReviewPanel task={selectedTask} />
+
+        <TaskAdvancedSections task={selectedTask} navigation={navigation} />
 
         {/* Comments */}
         <View style={styles.section}>

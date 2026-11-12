@@ -1,66 +1,90 @@
 import { io } from 'socket.io-client';
 import { API_URL } from '../config/api.config';
-import { getToken } from '../utils/authStorage';
+import { getValidAccessToken, refreshAccessToken, expireSession, subscribeTokenChanged, isPasswordChanging, waitForPasswordChange, getAuthGeneration } from './tokenManager';
 
 class SocketService {
   constructor() {
     this.socket = null;
     this.connected = false;
     this.listeners = new Map();
+    this.rooms = new Set();
   }
 
-  async connect() {
-    try {
-      if (this.socket && this.connected) {
-        console.log('Socket already connected');
+  connect() {
+    if (this.connected) return Promise.resolve();
+    if (this.connecting) return this.connecting;
+    this.connecting = this.openConnection().finally(() => { this.connecting = null; });
+    return this.connecting;
+  }
+
+  async openConnection() {
+    const token = await getValidAccessToken();
+    if (!token) throw new Error('No authentication token found');
+    this.socket?.disconnect();
+    this.unsubscribeToken?.();
+    let authFailure = false;
+    const connectedSocket = io(API_URL.replace('/api', ''), {
+      autoConnect: false,
+      auth: callback => {
+        getValidAccessToken().then(value => { authFailure = false; connectedSocket.accessToken = value; callback({ token: value }); })
+          .catch(() => { authFailure = true; callback({ token: null }); });
+      },
+      transports: ['websocket', 'polling'], reconnection: true,
+      reconnectionDelay: 1000, reconnectionDelayMax: 5000, reconnectionAttempts: 5,
+    });
+    connectedSocket.accessToken = token;
+    this.socket = connectedSocket;
+    let refreshAttempts = 0;
+    const recover = async () => {
+      if (refreshAttempts++ >= 1 || this.socket !== connectedSocket) return false;
+      const generation = getAuthGeneration();
+      try {
+        await refreshAccessToken(connectedSocket.accessToken);
+        if (this.socket !== connectedSocket || generation !== getAuthGeneration()) return false;
+        connectedSocket.connect();
+        return true;
+      } catch { return false; }
+    };
+    this.unsubscribeToken = subscribeTokenChanged(() => {
+      if (this.socket === connectedSocket && this.connected) {
+        connectedSocket.disconnect();
+        connectedSocket.connect();
+      }
+    });
+    connectedSocket.on('session_revoked', async event => {
+      if (this.socket !== connectedSocket) return;
+      connectedSocket.disconnect(); this.connected = false;
+      if (event?.code === 'token_expired') { await recover(); return; }
+      if (event?.reason === 'password_changed' && isPasswordChanging()) {
+        try { await waitForPasswordChange(); if (this.socket === connectedSocket) connectedSocket.connect(); }
+        catch { await expireSession(connectedSocket.accessToken); }
         return;
       }
-
-      const token = await getToken();
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      const baseUrl = API_URL.replace('/api', '');
-
-      this.socket = io(baseUrl, {
-        auth: {
-          token: token,
-        },
-        transports: ['websocket', 'polling'],
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        reconnectionAttempts: 5,
+      await expireSession(connectedSocket.accessToken);
+    });
+    this.setupDefaultListeners();
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Connection timeout')), 10000);
+      connectedSocket.on('connect', () => {
+        clearTimeout(timeout); refreshAttempts = 0; this.connected = true;
+        this.rooms?.forEach(id => connectedSocket.emit('join_conversation', id));
+        resolve();
       });
-
-      this.setupDefaultListeners();
-
-      return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Connection timeout'));
-        }, 10000);
-
-        this.socket.on('connect', () => {
-          clearTimeout(timeout);
-          this.connected = true;
-          console.log('Socket connected:', this.socket.id);
-          resolve();
-        });
-
-        this.socket.on('connect_error', (error) => {
-          clearTimeout(timeout);
-          console.error('Socket connection error:', error);
-          reject(error);
-        });
+      connectedSocket.on('connect_error', async error => {
+        if (authFailure) { clearTimeout(timeout); connectedSocket.disconnect(); reject(new Error('Unable to refresh socket credentials')); return; }
+        if (error.data?.code === 'token_expired' && await recover()) return;
+        clearTimeout(timeout);
+        if (['session_revoked', 'invalid_token'].includes(error.data?.code)) await expireSession(connectedSocket.accessToken);
+        reject(error);
       });
-    } catch (error) {
-      console.error('Socket connection failed:', error);
-      throw error;
-    }
+      connectedSocket.connect();
+    });
   }
 
   setupDefaultListeners() {
+    for (const [event, callbacks] of this.listeners) {
+      callbacks.forEach(callback => this.socket.on(event, callback));
+    }
     this.socket.on('disconnect', (reason) => {
       console.log('Socket disconnected:', reason);
       this.connected = false;
@@ -81,6 +105,8 @@ class SocketService {
   }
 
   disconnect() {
+    this.unsubscribeToken?.();
+    this.rooms.clear();
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
@@ -96,6 +122,7 @@ class SocketService {
 
   // Join a conversation room
   joinConversation(conversationId) {
+    this.rooms.add(conversationId);
     if (this.socket && this.connected) {
       this.socket.emit('join_conversation', conversationId);
       console.log('Joined conversation:', conversationId);
@@ -104,6 +131,7 @@ class SocketService {
 
   // Leave a conversation room
   leaveConversation(conversationId) {
+    this.rooms.delete(conversationId);
     if (this.socket && this.connected) {
       this.socket.emit('leave_conversation', conversationId);
       console.log('Left conversation:', conversationId);
@@ -140,28 +168,24 @@ class SocketService {
     }
   }
 
+  onNotificationCreated(callback) {
+    this.on('notification_created', callback);
+    return () => this.off('notification_created', callback);
+  }
+
   // Event listeners
   on(event, callback) {
-    if (!this.socket) {
-      console.warn('Socket not initialized');
-      return;
-    }
-
-    // Store the callback
+    // Store callbacks before connect so auth-ready notifications are not lost.
     if (!this.listeners.has(event)) {
       this.listeners.set(event, []);
     }
     this.listeners.get(event).push(callback);
 
     // Add listener to socket
-    this.socket.on(event, callback);
+    this.socket?.on(event, callback);
   }
 
   off(event, callback) {
-    if (!this.socket) {
-      return;
-    }
-
     // Remove from stored listeners
     if (this.listeners.has(event)) {
       const callbacks = this.listeners.get(event);
@@ -175,7 +199,7 @@ class SocketService {
     }
 
     // Remove from socket
-    this.socket.off(event, callback);
+    this.socket?.off(event, callback);
   }
 
   // Remove all listeners for an event

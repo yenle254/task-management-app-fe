@@ -3,7 +3,7 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import Upload from '../../../assets/icons/upload.svg';
-import { formatFileSize, getFileIcon } from '../../utils/fileValidation';
+import { formatFileSize, getFileIcon } from './attachmentUpload';
 
 const AttachmentPicker = ({ 
   attachments = [], 

@@ -130,22 +130,8 @@ const SignInScreen = ({ navigation }) => {
           disabled={isLoading}
         />
 
-        <View style={styles.dividerContainer}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        <TouchableOpacity style={styles.outlineButton}>
-          <Text style={styles.outlineButtonText}>Sign in With Employee ID</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.outlineButton, { marginTop: 12 }]}>
-          <Text style={styles.outlineButtonText}>Sign in With Phone</Text>
-        </TouchableOpacity>
-
         <View style={styles.signUpContainer}>
-          <Text style={styles.signUpText}>Don't have an account? </Text>
+          <Text style={styles.signUpText}>Don&apos;t have an account? </Text>
           <TouchableOpacity onPress={() => navigation.navigate("SignUp")}>
             <Text style={styles.signUpLink}>Sign Up Here</Text>
           </TouchableOpacity>

@@ -10,31 +10,12 @@ const MessageBadge = () => {
     const fetchUnreadCount = useMessageStore(state => state.fetchUnreadCount);
     
     useEffect(() => {
-        fetchUnreadCount();
-    }, []);
-
-    useEffect(() => {
-        const initSocket = async () => {
-            try {
-                if (!socketService.isConnected()) {
-                    await socketService.connect();
-                }
-
-                const handleMessageNotification = () => {
-                    fetchUnreadCount();
-                };
-
-                socketService.onMessageNotification(handleMessageNotification);
-
-                return () => {
-                    socketService.off('message_notification', handleMessageNotification);
-                };
-            } catch (error) {
-                console.error('MessageBadge socket error:', error);
-            }
+        const handleMessageNotification = () => {
+            fetchUnreadCount();
         };
-
-        initSocket();
+        // Auth owns the connection; socketService retains listeners until connected.
+        socketService.onMessageNotification(handleMessageNotification);
+        return () => socketService.off('message_notification', handleMessageNotification);
     }, [fetchUnreadCount]);
 
 

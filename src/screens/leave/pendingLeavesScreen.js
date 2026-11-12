@@ -9,9 +9,12 @@ import IconCardText from "@/src/components/task/iconCardText";
 import { useLeaveStore } from "../../../store";
 import { useAuth } from "../../contexts/authContext";
 import apiClient from "../../services/api";
+import { useFocusEffect } from "@react-navigation/native";
+import LeaveWorkflowDetails, { leaveStatusLabel } from "../../components/leave/leaveWorkflowDetails";
 
 const PendingLeavesScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
+  const [actionError, setActionError] = useState("");
   const [selectedTeam, setSelectedTeam] = useState("all");
   const [teams, setTeams] = useState(["all", "Team A", "Team B", "Team C"]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -28,6 +31,7 @@ const PendingLeavesScreen = ({ navigation }) => {
   const {
     pendingLeaves,
     isLoading,
+    isMutating,
     error,
     fetchPendingLeaves,
     approveLeave,
@@ -36,24 +40,30 @@ const PendingLeavesScreen = ({ navigation }) => {
   } = useLeaveStore();
 
   const { user } = useAuth();
+  const canReview = leave => {
+    const actorId = String(user?._id || user?.id);
+    if (!["pending", "pending_team_lead", "pending_hr"].includes(leave.status)) return false;
+    if (user?.role === "hr_manager") return true;
+    if (String(leave.userId?._id || leave.userId) === actorId) return false;
+    return user?.role === "team_lead" && leave.status === "pending_team_lead" &&
+      (leave.approverSnapshot || []).some(a => a.role === "team_lead" && String(a.userId?._id || a.userId) === actorId);
+  };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useFocusEffect(React.useCallback(() => { loadData(); }, [user?._id]));
 
   useEffect(() => {
     if (error) {
       Alert.alert("Error", error);
-      clearError();
+      // Keep the inline retry visible.
     }
   }, [error]);
 
   const loadData = async () => {
     try {
-      await fetchPendingLeaves();
+      await fetchPendingLeaves(user?.role === "team_lead" ? { step: "team_lead" } : {});
       try {
         const response = await apiClient.get('/leaves/statistics');
-        
+
         if (response?.success) {
           const stats = response?.stats || { pending: 0, approved: 0, rejected: 0 };
           const leaves = response?.data || [];
@@ -81,8 +91,8 @@ const PendingLeavesScreen = ({ navigation }) => {
     if (selectedTeam === "all") {
       return pendingLeaves;
     }
-    return pendingLeaves;
-  }, [pendingLeaves, selectedTeam]);
+    return allLeaves;
+  }, [pendingLeaves, allLeaves, selectedTeam]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -104,6 +114,7 @@ const PendingLeavesScreen = ({ navigation }) => {
   };
 
   const handleViewDetails = (leave) => {
+    setActionError("");
     setSelectedLeave(leave);
     setModalVisible(true);
     setRejectionReason("");
@@ -119,30 +130,29 @@ const PendingLeavesScreen = ({ navigation }) => {
   };
 
   const handleConfirmApprove = async () => {
-    if (!selectedLeave) return;
-    
+    if (!selectedLeave || isMutating) return;
+
     try {
-      await approveLeave(selectedLeave._id);
+      await approveLeave(selectedLeave._id, selectedLeave.revision);
       Alert.alert("Success", "Leave request has been approved!");
       setModalVisible(false);
       setSelectedLeave(null);
       setActionType(null);
       await loadData();
     } catch (error) {
+      setModalVisible(false);
+      await loadData();
+      setActionError(error?.error || "Leave changed. Refresh and retry.");
       Alert.alert("Error", error?.error || "Failed to approve leave request");
     }
   };
 
   const handleConfirmReject = async () => {
-    if (!selectedLeave) return;
-    
-    if (!rejectionReason.trim()) {
-      Alert.alert("Required", "Please provide a reason for rejection");
-      return;
-    }
-    
+    if (!selectedLeave || isMutating) return;
+
+
     try {
-      await rejectLeave(selectedLeave._id, rejectionReason);
+      await rejectLeave(selectedLeave._id, rejectionReason, selectedLeave.revision);
       Alert.alert("Success", "Leave request has been rejected!");
       setModalVisible(false);
       setSelectedLeave(null);
@@ -150,6 +160,9 @@ const PendingLeavesScreen = ({ navigation }) => {
       setActionType(null);
       await loadData();
     } catch (error) {
+      setModalVisible(false);
+      await loadData();
+      setActionError(error?.error || "Leave changed. Refresh and retry.");
       Alert.alert("Error", error?.error || "Failed to reject leave request");
     }
   };
@@ -159,32 +172,8 @@ const PendingLeavesScreen = ({ navigation }) => {
     setRejectionReason("");
   };
 
-  const handleQuickApprove = async (leaveId) => {
-    Alert.alert(
-      "Confirm Approval",
-      "Are you sure you want to approve this leave request?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Approve",
-          onPress: async () => {
-            try {
-              await approveLeave(leaveId);
-              Alert.alert("Success", "Leave request has been approved!");
-              await loadData();
-            } catch (error) {
-              Alert.alert("Error", error?.error || "Failed to approve leave request");
-            }
-          }
-        }
-      ]
-    );
-  };
-
   const handleQuickReject = (leave) => {
+    setActionError("");
     setSelectedLeave(leave);
     setModalVisible(true);
     setActionType("reject");
@@ -203,7 +192,7 @@ const PendingLeavesScreen = ({ navigation }) => {
         onPress={() => handleViewDetails(item)}
       >
         <View style={styles.employeeSection}>
-          <Avatar 
+          <Avatar
             url={employeeAvatar}
             name={employeeName}
             width={48}
@@ -223,7 +212,7 @@ const PendingLeavesScreen = ({ navigation }) => {
               {item.type?.toUpperCase() || "LEAVE"}
             </Text>
             <View style={styles.pendingBadge}>
-              <Text style={styles.pendingBadgeText}>PENDING</Text>
+              <Text style={styles.pendingBadgeText}>{leaveStatusLabel(item.status)}</Text>
             </View>
           </View>
 
@@ -248,17 +237,18 @@ const PendingLeavesScreen = ({ navigation }) => {
           )}
         </View>
 
-        <View style={styles.actionButtons}>
+        {canReview(item) && <View style={styles.actionButtons}>
           <TouchableOpacity
             style={[styles.actionButton, styles.approveButton]}
             onPress={(e) => {
               e.stopPropagation();
-              handleQuickApprove(item._id);
+              handleViewDetails(item);
+              setActionType("approve");
             }}
           >
             <Text style={styles.approveButtonText}>Approve</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[styles.actionButton, styles.rejectButton]}
             onPress={(e) => {
@@ -268,7 +258,7 @@ const PendingLeavesScreen = ({ navigation }) => {
           >
             <Text style={styles.rejectButtonText}>Reject</Text>
           </TouchableOpacity>
-        </View>
+        </View>}
       </Pressable>
     );
   };
@@ -329,6 +319,51 @@ const PendingLeavesScreen = ({ navigation }) => {
         </View>
       </View>
 
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={[styles.tab, selectedTeam === "all" && styles.activeTab]}
+          onPress={() => setSelectedTeam("all")}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              selectedTeam === "all" && styles.activeTabText,
+            ]}
+          >
+            Pending inbox
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={[styles.tab, selectedTeam === "history" && styles.activeTab]}
+          onPress={() => setSelectedTeam("history")}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              selectedTeam === "history" && styles.activeTabText,
+            ]}
+          >
+            All requests
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={styles.tab}
+          onPress={() => navigation.navigate("MyLeaves")}
+        >
+          <Text style={styles.tabText}>My leaves</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={styles.tab}
+          onPress={() => navigation.navigate("SubmitLeave")}
+        >
+          <Text style={styles.tabText}>Submit Leave</Text>
+        </TouchableOpacity>
+      </View>
+      {error || actionError ? <TouchableOpacity accessibilityRole="button" onPress={() => { setActionError(""); loadData(); }}><Text>{error || actionError} · Retry</Text></TouchableOpacity> : null}
       {/* <View style={styles.filterContainer}>
         <ScrollView 
           horizontal 
@@ -413,7 +448,7 @@ const PendingLeavesScreen = ({ navigation }) => {
         }}
       >
         <View style={styles.modalContainer}>
-          <ScrollView 
+          <ScrollView
             style={styles.modalScrollView}
             contentContainerStyle={styles.modalScrollContent}
           >
@@ -421,13 +456,13 @@ const PendingLeavesScreen = ({ navigation }) => {
               {selectedLeave && (
                 <>
                   <Text style={styles.modalTitle}>Leave Request Details</Text>
-                  
+
                   <View style={styles.modalEmployeeSection}>
-                    <Avatar 
+                    <Avatar
                       url={selectedLeave.userId?.profile?.avatar || null}
-                      name={selectedLeave.userId?.profile?.fullName|| selectedLeave.userId?.email || "Unknown"} 
-                      width={56} 
-                      height={56} 
+                      name={selectedLeave.userId?.profile?.fullName || selectedLeave.userId?.email || "Unknown"}
+                      width={56}
+                      height={56}
                     />
                     <View style={styles.modalEmployeeInfo}>
                       <Text style={styles.modalEmployeeName}>
@@ -471,12 +506,12 @@ const PendingLeavesScreen = ({ navigation }) => {
                   {/* Status Badge */}
                   <View style={styles.modalStatusRow}>
                     <View style={styles.pendingBadge}>
-                      <Text style={styles.pendingBadgeText}>PENDING APPROVAL</Text>
+                      <Text style={styles.pendingBadgeText}>{leaveStatusLabel(selectedLeave.status)}</Text>
                     </View>
                   </View>
 
                   {/* Action Section */}
-                  {!actionType ? (
+                  {canReview(selectedLeave) && (!actionType ? (
                     <View style={styles.modalActionButtons}>
                       <TouchableOpacity
                         style={[styles.modalActionButton, styles.modalApproveButton]}
@@ -484,7 +519,7 @@ const PendingLeavesScreen = ({ navigation }) => {
                       >
                         <Text style={styles.modalApproveButtonText}>Approve</Text>
                       </TouchableOpacity>
-                      
+
                       <TouchableOpacity
                         style={[styles.modalActionButton, styles.modalRejectButton]}
                         onPress={handleRejectClick}
@@ -507,6 +542,7 @@ const PendingLeavesScreen = ({ navigation }) => {
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={[styles.modalConfirmButton, styles.modalApproveConfirmButton]}
+                          disabled={isMutating}
                           onPress={handleConfirmApprove}
                         >
                           <Text style={styles.modalApproveConfirmButtonText}>Yes, Approve</Text>
@@ -517,7 +553,7 @@ const PendingLeavesScreen = ({ navigation }) => {
                     <View style={styles.modalConfirmSection}>
                       <Text style={styles.modalConfirmTitle}>Reject Leave Request</Text>
                       <Text style={styles.modalConfirmMessage}>
-                        Please provide a reason for rejecting this leave request:
+                        Rejection reason (optional):
                       </Text>
                       <TextInput
                         style={styles.rejectionReasonInput}
@@ -538,19 +574,21 @@ const PendingLeavesScreen = ({ navigation }) => {
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={[
-                            styles.modalConfirmButton, 
+                            styles.modalConfirmButton,
                             styles.modalRejectConfirmButton,
-                            !rejectionReason.trim() && styles.modalConfirmButtonDisabled
+                            isMutating && styles.modalConfirmButtonDisabled
                           ]}
                           onPress={handleConfirmReject}
-                          disabled={!rejectionReason.trim()}
+                          disabled={isMutating}
                         >
                           <Text style={styles.modalRejectConfirmButtonText}>Confirm Reject</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
-                  )}
+                  ))}
 
+                  <LeaveWorkflowDetails leave={selectedLeave} user={user} navigation={navigation}
+                    onChanged={loadData} onClose={() => { setModalVisible(false); setSelectedLeave(null); }} />
                   {/* Close Button */}
                   <TouchableOpacity
                     style={styles.modalCloseButton}
@@ -576,6 +614,38 @@ const PendingLeavesScreen = ({ navigation }) => {
 export default PendingLeavesScreen;
 
 const styles = StyleSheet.create({
+  tabsContainer: {
+    flexDirection: "row",
+    gap: 0,
+    padding: 3,
+    backgroundColor: Colors.white,
+    borderRadius: 24,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 20,
+    backgroundColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    position: "relative",
+  },
+  activeTab: {
+    backgroundColor: Colors.primary,
+  },
+  tabText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#666666",
+  },
+  activeTabText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
   filterContainer: {
     marginTop: -80,
     marginHorizontal: 16,

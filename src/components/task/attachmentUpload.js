@@ -11,7 +11,7 @@ import {
 import Upload from '../../../assets/icons/upload.svg';
 import Colors from '../../styles/color';
 
-const getFileIcon = (fileName) => {
+export const getFileIcon = (fileName) => {
   const ext = fileName.split('.').pop().toLowerCase();
   switch (ext) {
     case 'pdf':
@@ -50,7 +50,7 @@ const getFileIcon = (fileName) => {
   }
 };
 
-const formatFileSize = (bytes) => {
+export const formatFileSize = (bytes) => {
   if (bytes === 0) return '0 B';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB'];

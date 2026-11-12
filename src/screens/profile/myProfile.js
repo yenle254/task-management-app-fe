@@ -26,6 +26,7 @@ import Payroll from "../../../assets/icons/money.svg";
 import Code from "../../../assets/icons/scroll.svg";
 import Key from "../../../assets/icons/setting-2.svg";
 import Mail from "../../../assets/icons/sms.svg";
+import Shield from "../../../assets/icons/security_safe.svg";
 import Person from "../../../assets/icons/user.svg";
 
 import { useAuth } from "@/src/contexts/authContext";
@@ -168,6 +169,18 @@ const MyProfile = () => {
               title="Change Password"
               onPress={() => navigation.navigate("ChangePassword")}
             />
+            <ClickChange
+              icon={<Code width={20} height={20} style={styles.inputIcon} />}
+              title="Notification settings"
+              onPress={() => navigation.navigate("NotificationSettings")}
+            />
+            {user?.role === 'hr_manager' && (
+              <ClickChange
+                icon={<Shield width={20} height={20} style={styles.inputIcon} />}
+                title="Audit Log"
+                onPress={() => navigation.navigate("AuditLog")}
+              />
+            )}
             <ClickChange
               icon={<Code width={20} height={20} style={styles.inputIcon} />}
               title="Versioning"

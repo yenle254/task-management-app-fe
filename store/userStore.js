@@ -34,7 +34,16 @@ const useUserStore = create((set, get) => ({
       const response = await userService.getAllUsers(params);
 
       const newUsers = response.data || [];
-      const newPagination = response.pagination || get().pagination;
+      const rawPagination = response.pagination || get().pagination;
+      const newPagination = {
+        ...rawPagination,
+        page: rawPagination.page ?? rawPagination.current ?? params.page ?? 1,
+        pages: rawPagination.pages ?? rawPagination.total ?? 1,
+        total:
+          rawPagination.totalRecords ??
+          rawPagination.total ??
+          newUsers.length,
+      };
 
       set((state) => ({
         users: isLoadMore ? [...state.users, ...newUsers] : newUsers,
@@ -85,9 +94,20 @@ const useUserStore = create((set, get) => ({
       const updatedUser = response.data;
 
       set((state) => ({
-        users: state.users.map((user) =>
-          user._id === id ? updatedUser : user
-        ),
+        users: state.users.map((user) => {
+          if (user._id !== id) return user;
+          const preservedTeamId =
+            typeof updatedUser?.teamId === "string" &&
+            typeof user?.teamId === "object" &&
+            user?.teamId?._id === updatedUser.teamId
+              ? user.teamId
+              : updatedUser.teamId;
+          return {
+            ...user,
+            ...updatedUser,
+            teamId: preservedTeamId,
+          };
+        }),
         currentUser:
           state.currentUser?._id === id ? updatedUser : state.currentUser,
         isLoading: false,

@@ -76,7 +76,7 @@ const TodayFocusCard = ({ navigation }) => {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <ClockIcon width={20} height={20} fill={Colors.primary} />
-            <Text style={styles.title}>Today's focus</Text>
+            <Text style={styles.title}>Today&apos;s focus</Text>
             {priorityTasks.length > 0 && <AppNumber number={priorityTasks.length} />}
           </View>
           {priorityTasks.length > 0 && (

@@ -211,7 +211,7 @@ const ClockinScreen = ({ navigation }) => {
               disabled={clockedOut}
             />
             {clockedOut && (
-              <Text style={styles.clockedOutText}>You have completed today's work</Text>
+              <Text style={styles.clockedOutText}>You have completed today&apos;s work</Text>
             )}
           </View>
         </View>
@@ -270,7 +270,7 @@ const ClockinScreen = ({ navigation }) => {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Confirm clockout?</Text>
             <Text style={styles.modalMessage}>
-              Once you clock out, you will not be able to make changes to today's attendance. Please double-check your work hours before confirming. Are you sure you want to proceed?
+              Once you clock out, you will not be able to make changes to today&apos;s attendance. Please double-check your work hours before confirming. Are you sure you want to proceed?
             </Text>
             
             <View style={styles.modalButtons}>

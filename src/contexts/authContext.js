@@ -1,7 +1,17 @@
+import useAuditStore from '../../store/auditStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import useLeaveStore from '../../store/leaveStore';
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { clearPreviews } from '../services/fileService';
 import authService from '../services/authService';
+import { subscribeSessionExpired } from '../services/api';
 import socketService from '../services/socketService';
+import useTaskStore from '../../store/taskStore';
+import useMessageStore from '../../store/messageStore';
+
+import useNotificationStore from '../../store/notificationStore';
+import useNotificationPreferencesStore from '../../store/notificationPreferencesStore';
+import { initNotificationManager, stopNotificationManager, cleanupNotifications, showForegroundNotification } from '../services/pushNotificationService';
 
 const AuthContext = createContext();
 
@@ -20,8 +30,36 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const unsubscribe = subscribeSessionExpired(() => {
+      useMessageStore.getState().reset();
+      useAuditStore.getState().reset();
+      cleanupNotifications(false).catch(() => {});
+      useNotificationStore.getState().reset();
+      useNotificationPreferencesStore.getState().reset();
+      useTaskStore.getState().reset();
+      useLeaveStore.getState().reset();
+      clearPreviews().catch(() => {});
+      socketService.disconnect();
+      setIsAuthenticated(false);
+      setUser(null);
+    });
     checkAuthState();
+    return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?._id) return;
+    const store = useNotificationStore.getState();
+    const preferenceStore = useNotificationPreferencesStore.getState();
+    preferenceStore.fetchPreferences().catch(() => {});
+    initNotificationManager(user._id, notification => {
+      if (useNotificationStore.getState().handleRealtimeNotification(notification)) {
+        showForegroundNotification(notification, useNotificationPreferencesStore.getState().preferences).catch(() => {});
+      }
+    }, () => useNotificationPreferencesStore.getState().preferences);
+    store.startAutoRefresh();
+    return () => { stopNotificationManager(); useNotificationStore.getState().stopAutoRefresh(); };
+  }, [isAuthenticated, user?._id]);
 
   const checkAuthState = async () => {
     try {
@@ -29,18 +67,19 @@ export const AuthProvider = ({ children }) => {
       const storedUser = await authService.getStoredUser();
       const onboarding = await AsyncStorage.getItem("hasSeenOnboarding");
 
-      setIsAuthenticated(!!token);
-      setUser(storedUser);
+      setIsAuthenticated(false);
+      setUser(null);
       setHasSeenOnboarding(onboarding === "true");
 
 
-      if (token && storedUser) {
+      if (token) {
         try {
           const response = await authService.getCurrentUser();
           
           // authService.getCurrentUser returns { success, data }
           if (response?.data) {
             setUser(response.data);
+            setIsAuthenticated(true);
           } else {
           }
           
@@ -67,6 +106,10 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       
       const response = await authService.login(email, password);
+      useMessageStore.getState().reset();
+      useAuditStore.getState().reset();
+      useTaskStore.getState().reset();
+      useLeaveStore.getState().reset();
       setIsAuthenticated(true);
       setUser(response.user);
       
@@ -93,6 +136,8 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       
       const response = await authService.register(userData);
+      useMessageStore.getState().reset();
+      useAuditStore.getState().reset();
       setIsAuthenticated(true);
       setUser(response.user);
       return { success: true, user: response.user };
@@ -109,11 +154,20 @@ export const AuthProvider = ({ children }) => {
 
   const signOut = async () => {
     try {
+      // Unregister while the session token is still valid.
+      await cleanupNotifications().catch(() => {});
+      useNotificationStore.getState().reset();
+      useNotificationPreferencesStore.getState().reset();
       // Disconnect socket before logout
+      useMessageStore.getState().reset();
+      useAuditStore.getState().reset();
+      clearPreviews().catch(() => {});
       socketService.disconnect();
       console.log('Socket disconnected on logout');
       
-      await authService.logout();
+      await authService.logout().catch(() => {});
+      useTaskStore.getState().reset();
+      useLeaveStore.getState().reset();
       setIsAuthenticated(false);
       setUser(null);
     } catch (error) {
@@ -162,6 +216,11 @@ export const AuthProvider = ({ children }) => {
 
   const isHRManager = () => {
     const result = user?.role === 'hr_manager';
+    return result;
+  };
+
+  const isSystemAdmin = () => {
+    const result = user?.role === 'system_admin';
     return result;
   };
 
@@ -243,6 +302,7 @@ export const AuthProvider = ({ children }) => {
         hasRole,
         canManageTasks,
         isHRManager,
+        isSystemAdmin,
         isTeamLead,
         isEmployee,
         updateProfile,

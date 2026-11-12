@@ -1,5 +1,5 @@
 import { useAuth } from '@/src/contexts/authContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { authorizedFetch, getValidAccessToken } from '../../services/tokenManager';
 import * as DocumentPicker from 'expo-document-picker';
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Platform
@@ -20,6 +20,9 @@ import HeaderWithBackButton from "../../components/headerWithBackButton";
 import SubTaskList from "../../components/task/subtaskList";
 import AddSubtaskInput from "../../components/task/addSubtaskInput";
 import SubtaskProgress from "../../components/task/subtaskProgress";
+import AdvancedTaskFields, { emptyAdvancedFields, advancedPayload } from "../../components/task/advancedTaskFields";
+import { AITaskBreakdownPanel } from "../../../chat_bot";
+import taskService from "../../services/taskService";
 import apiClient from "../../services/api";
 import { teamService } from "../../services/index";
 import { API_URL } from "../../config/api.config";
@@ -43,10 +46,13 @@ const formatFileSize = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-const CreateTaskScreen = ({ navigation }) => {
+const CreateTaskScreen = ({ navigation, route }) => {
   const { user, canManageTasks } = useAuth();
   const { createTask, isLoading } = useTaskStore();
 
+  const [advancedFields, setAdvancedFields] = useState(emptyAdvancedFields);
+  const [selectedDifficulty, setSelectedDifficulty] = useState("medium");
+  const [aiChecklistItems, setAiChecklistItems] = useState([]);
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
   const [selectedMembers, setSelectedMembers] = useState([]);
@@ -124,6 +130,18 @@ const CreateTaskScreen = ({ navigation }) => {
       }
       if (response?.data) {
         setTeamMembers(response.data);
+        const prefill = route?.params?.aiPrefill;
+        if (prefill) {
+          if (prefill.difficulty) setSelectedDifficulty(prefill.difficulty);
+          if (prefill.priority) {
+            const pObj = PRIORITIES.find((p) => p.id === prefill.priority);
+            if (pObj) setSelectedPriority(pObj);
+          }
+          if (prefill.assigneeId) {
+            const matchedMember = response.data.find((m) => String(m._id) === String(prefill.assigneeId));
+            if (matchedMember) setSelectedMembers([matchedMember]);
+          }
+        }
       }
     } catch (error) {
       console.error("Failed to fetch team members:", error);
@@ -139,7 +157,7 @@ const CreateTaskScreen = ({ navigation }) => {
     try {
       console.log('Starting file upload for', files.length, 'files');
       
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await getValidAccessToken();
       const formData = new FormData();
       
       files.forEach((file) => {
@@ -155,7 +173,7 @@ const CreateTaskScreen = ({ navigation }) => {
       const uploadUrl = `${API_URL}/tasks/${taskId}/attachments/bulk`;
       console.log('Upload URL:', uploadUrl);
       
-      const uploadResponse = await fetch(uploadUrl, {
+      const uploadResponse = await authorizedFetch(uploadUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -268,7 +286,7 @@ const CreateTaskScreen = ({ navigation }) => {
       }
   
     } catch (error) {
-      if (!DocumentPicker.isCancel(error)) {
+      if (error) {
         Alert.alert(
           "Error",
           "Unable to pick file(s). Please try again.",
@@ -308,7 +326,9 @@ const CreateTaskScreen = ({ navigation }) => {
     if (user?.role === 'hr_manager' && !selectedTeam?._id) return { valid: false, message: 'Team is required' };
     if (!startDate) return { valid: false, message: 'Start date is required' };
     if (!dueDate) return { valid: false, message: 'Due date is required' };
-    if (new Date(dueDate) < new Date(startDate)) return { valid: false, message: 'Due date cannot be earlier than start date' };
+    if (!isValidDate(startDate)) return { valid: false, message: 'Please select a valid start date' };
+    if (!isValidDate(dueDate)) return { valid: false, message: 'Please select a valid due date' };
+    if (dueDate.getTime() < startDate.getTime()) return { valid: false, message: 'Due date cannot be earlier than start date' };
     return { valid: true };
   };
 
@@ -322,37 +342,27 @@ const CreateTaskScreen = ({ navigation }) => {
   };
 
   const openCalendar = (field) => {
-    const dateStr = field === "start" ? startDate : dueDate;
-    let parsedDate = new Date();
-
-    if (dateStr) {
-      const parts = dateStr.split(' ');
-      if (parts.length === 3) {
-        const day = parseInt(parts[0], 10);
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-        const monthIndex = monthNames.findIndex(m => m.toLowerCase().startsWith(parts[1].toLowerCase()));
-        const year = parseInt(parts[2], 10);
-        if (!isNaN(day) && monthIndex >= 0 && !isNaN(year)) {
-          parsedDate = new Date(year, monthIndex, day);
-        }
-      }
-    }
-
-    setTempDate(parsedDate);
-    setCurrentMonth(new Date(parsedDate.getFullYear(), parsedDate.getMonth()));
+    const value = field === "start" ? startDate : dueDate;
+    const selectedDate = isValidDate(value) ? new Date(value.getTime()) : new Date();
+    setTempDate(selectedDate);
+    setCurrentMonth(new Date(selectedDate.getFullYear(), selectedDate.getMonth()));
     setDateField(field);
     setShowCalendarModal(true);
   };
 
   const confirmDate = () => {
-    if (tempDate && !isNaN(tempDate.getTime())) {
-      const formatted = tempDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-      if (dateField === "start") setStartDate(formatted);
-      else setDueDate(formatted);
-      setShowCalendarModal(false);
+    if (!isValidDate(tempDate)) {
+      Alert.alert("Invalid Date", "Please select a valid date");
+      return;
     }
+    // Keep the calendar value as a Date. Localized labels are for display only.
+    const selectedDate = new Date(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate());
+    if (dateField === "start") setStartDate(selectedDate);
+    else setDueDate(selectedDate);
+    setShowCalendarModal(false);
   };
 
+  const isValidDate = (date) => date instanceof Date && Number.isFinite(date.getTime());
   const formatDate = (date) => date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
   const getDaysInMonth = (date) => {
@@ -390,7 +400,7 @@ const CreateTaskScreen = ({ navigation }) => {
         <View style={styles.selectorLeft}>
           <CalendarIcon width={20} height={20} />
           <Text style={[styles.selectorText, !value && styles.placeholderText]}>
-            {value || "Select date"}
+            {isValidDate(value) ? formatDate(value) : "Select date"}
           </Text>
         </View>
         <ChevronDown width={20} height={20} />
@@ -475,24 +485,40 @@ const CreateTaskScreen = ({ navigation }) => {
 
   const handleConfirmCreateTask = async () => {
     setShowConfirmDialog(false);
+    const validation = validateTaskData();
+    if (!validation.valid) {
+      Alert.alert("Validation Error", validation.message);
+      return;
+    }
     setIsUploading(true);
   
     try {
       const resolvedTeamId = user?.role === 'hr_manager' ? selectedTeam?._id : user?.teamId;
       const taskPayload = {
+        ...advancedPayload(advancedFields),
         title: taskTitle.trim(),
         description: taskDescription.trim(),
         assignedTo: selectedMembers.map((m) => m._id),
         teamId: resolvedTeamId,
         priority: selectedPriority?.id || "medium",
-        difficulty: "medium",
+        difficulty: selectedDifficulty || "medium",
         attachments: [],
-        startDate: startDate || null,
-        dueDate: dueDate || null,
+        startDate: startDate.toISOString(),
+        dueDate: dueDate.toISOString(),
       };
   
       const createResponse = await createTask(taskPayload);
       const newTaskId = createResponse.data._id || createResponse._id;
+      if (advancedFields.checklistTitle.trim()) {
+        const clRes = await taskService.addChecklist(newTaskId, advancedFields.checklistTitle.trim());
+        const createdChecklists = clRes?.data?.checklists || [];
+        const latestChecklist = createdChecklists[createdChecklists.length - 1];
+        if (latestChecklist?._id && aiChecklistItems.length > 0) {
+          for (const itemText of aiChecklistItems) {
+            await taskService.addChecklistItem(newTaskId, latestChecklist._id, itemText);
+          }
+        }
+      }
   
 
       if (attachments.length > 0) {
@@ -733,6 +759,7 @@ const CreateTaskScreen = ({ navigation }) => {
 
       <ScrollView
         style={styles.scrollView}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.scrollViewContent}
         showsVerticalScrollIndicator={false}
       >
@@ -811,6 +838,36 @@ const CreateTaskScreen = ({ navigation }) => {
                 numberOfLines={5}
                 textAlignVertical="top"
               />
+              <AITaskBreakdownPanel
+                mode="create"
+                title={taskTitle}
+                description={taskDescription}
+                onApplyBreakdown={(bd) => {
+                  if (bd.difficulty) setSelectedDifficulty(bd.difficulty);
+                  if (bd.priority) {
+                    const matchedP = PRIORITIES.find((p) => p.id === bd.priority);
+                    if (matchedP) setSelectedPriority(matchedP);
+                  }
+                  setAdvancedFields((prev) => ({
+                    ...prev,
+                    estimatedMinutes: bd.estimatedMinutes != null ? String(bd.estimatedMinutes) : prev.estimatedMinutes,
+                    storyPoints: bd.storyPoints != null ? String(bd.storyPoints) : prev.storyPoints,
+                    tags: Array.isArray(bd.tags) && bd.tags.length > 0 ? [...new Set([...prev.tags, ...bd.tags])].slice(0, 20) : prev.tags,
+                    checklistTitle: bd.checklist?.title || prev.checklistTitle
+                  }));
+                  if (Array.isArray(bd.checklist?.items)) {
+                    setAiChecklistItems(bd.checklist.items);
+                  }
+                  if (Array.isArray(bd.subTasks) && bd.subTasks.length > 0) {
+                    const generatedSubtasks = bd.subTasks.map((st, idx) => ({
+                      id: `ai-st-${Date.now()}-${idx}`,
+                      title: st.title,
+                      isCompleted: false
+                    }));
+                    setSubtasks((prev) => [...prev, ...generatedSubtasks]);
+                  }
+                }}
+              />
             </View>
 
             {renderDateSelector("Start Date", startDate, "start")}
@@ -859,6 +916,7 @@ const CreateTaskScreen = ({ navigation }) => {
               Priority
             )}
 
+            <AdvancedTaskFields value={advancedFields} onChange={setAdvancedFields} creating />
             {/* Subtasks Section */}
             <View style={styles.selectorContainer}>
               <View style={styles.subtaskHeader}>

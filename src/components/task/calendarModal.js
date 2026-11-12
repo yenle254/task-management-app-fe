@@ -4,10 +4,20 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View 
 import ChevronLeft from '../../../assets/icons/chevron_left.svg';
 import ChevronRight from '../../../assets/icons/chevron_right.svg';
 
+export const getDaysInMonth = (date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const count = new Date(year, month + 1, 0).getDate();
+  return [...Array(firstDay).fill(null), ...Array.from({ length: count }, (_, i) => new Date(year, month, i + 1))];
+};
+
 const CalendarModal = ({ 
   visible, 
   onClose, 
   onSelectDate,
+  onSelectDateValue,
+  contentStyle,
   initialDate = null,
   minDate = null,
   maxDate = null,
@@ -22,21 +32,7 @@ const CalendarModal = ({
     return new Date();
   });
 
-  const getDaysInMonth = (date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    const days = [];
-    for (let i = 0; i < firstDay; i++) {
-      days.push(null);
-    }
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(new Date(year, month, i));
-    }
-    return days;
-  };
 
   const isSameDay = (d1, d2) => {
     if (!d1 || !d2) return false;
@@ -59,7 +55,11 @@ const CalendarModal = ({
   };
 
   const handleConfirm = () => {
-    if (selectedDate) {
+    if (selectedDate && !isDateDisabled(selectedDate)) {
+      if (onSelectDateValue) {
+        onSelectDateValue(new Date(selectedDate));
+        return;
+      }
       const formatted = selectedDate.toLocaleDateString('en-GB', { 
         day: 'numeric', 
         month: 'long', 
@@ -70,22 +70,22 @@ const CalendarModal = ({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.content} onPress={(e) => e.stopPropagation()}>
+        <Pressable style={[styles.content, contentStyle]} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
           <View style={styles.header}>
             <Text style={styles.title}>Select Date</Text>
             <View style={styles.divider} />
           </View>
 
           <View style={styles.monthHeader}>
-            <TouchableOpacity onPress={prevMonth}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Previous month" onPress={prevMonth}>
               <ChevronLeft width={24} height={24} />
             </TouchableOpacity>
             <Text style={styles.monthText}>
               {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
             </Text>
-            <TouchableOpacity onPress={nextMonth}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Next month" onPress={nextMonth}>
               <ChevronRight width={24} height={24} />
             </TouchableOpacity>
           </View>
@@ -103,6 +103,9 @@ const CalendarModal = ({
                 return (
                   <TouchableOpacity
                     key={idx}
+                    accessibilityRole="button"
+                    accessibilityLabel={day ? day.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : undefined}
+                    accessibilityState={{ disabled: !day || disabled, selected: isSameDay(day, selectedDate) }}
                     style={[styles.calendarDay, !day && styles.emptyDay]}
                     onPress={() => day && !disabled && setSelectedDate(day)}
                     disabled={!day || disabled}
@@ -130,12 +133,15 @@ const CalendarModal = ({
 
           <View style={styles.buttons}>
             <TouchableOpacity 
+              accessibilityRole="button"
               style={[styles.button, styles.buttonClose]} 
               onPress={onClose}
             >
               <Text style={styles.buttonTextClose}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity 
+              accessibilityRole="button"
+              disabled={!selectedDate || isDateDisabled(selectedDate)}
               style={[styles.button, styles.buttonConfirm]} 
               onPress={handleConfirm}
             >

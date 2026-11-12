@@ -1,15 +1,23 @@
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, RefreshControl, SectionList, StyleSheet, Text, TouchableOpacity, View,
+import { ActivityIndicator, Platform, RefreshControl, SectionList, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TrashIcon from '../../assets/icons/trash.svg';
 import useNotificationStore from '../../store/notificationStore';
 import HeaderWithBackButton from '../components/headerWithBackButton';
 import Colors from '../styles/color';
+import { useAuth } from '../contexts/authContext';
+import { notificationTarget } from '../utils/notificationTarget';
+import { permissionGranted, registerPushToken } from '../services/pushNotificationService';
+import AppButton from '../components/appButton';
+import { Ionicons } from '@expo/vector-icons';
 import Noti_IC from "../../assets/icons/noti_ic.svg"
 
 const NotificationScreen = ({ navigation }) => {
+  const { user } = useAuth();
+  const [needsPermission, setNeedsPermission] = useState(false);
+  useEffect(() => { if (Platform.OS !== 'web') permissionGranted().then(granted => setNeedsPermission(!granted)).catch(() => {}); }, []);
   const {
     notifications,
     unreadCount,
@@ -29,51 +37,30 @@ const NotificationScreen = ({ navigation }) => {
 
   useFocusEffect(
     useCallback(() => {
-      refresh();
-      startAutoRefresh();
-      return () => stopAutoRefresh();
+      refresh().catch(() => {});
+      return () => {};
     }, [refresh, startAutoRefresh, stopAutoRefresh])
   );
 
-  useEffect(() => {
-    if (error) {
-      clearError();
-    }
-  }, [error, clearError]);
+
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await refresh();
-    setRefreshing(false);
+    try { await refresh(); } catch {} finally { setRefreshing(false); }
   };
 
 
   const handlePress = async (item) => {
     if (!item.isRead) {
-      await markAsRead(item._id);
+      try { await markAsRead(item._id); } catch { return; }
     }
-    if (item.relatedId) {
-      const taskId = typeof item.relatedId === 'object' ? item.relatedId._id : item.relatedId;
-
-      if (item.type.includes('task')) {
-        navigation.navigate('Main', {
-          screen: 'task',
-          params: {
-            screen: 'TaskDetail',
-            params: { taskId }
-          }
-        });
-      } else if (item.type.includes('leave')) {
-        navigation.navigate('Main', {
-          screen: 'leave'
-        });
-      }
-    }
+    const target = notificationTarget(item, user?.role);
+    if (target) navigation.navigate(target.screen, target.params);
   };
 
 
   const handleDelete = (id) => {
-    deleteNotification(id);
+    deleteNotification(id).catch(() => {});
   };
 
 
@@ -91,7 +78,10 @@ const NotificationScreen = ({ navigation }) => {
 
 
   const getIcon = (type) => {
-    return <Noti_IC width={28} height={28} />;
+    const name = (type.startsWith('task_review_') || type === 'task_submitted_for_review') ? 'clipboard-outline' : type === 'task_overdue' ? 'time-outline' : type.startsWith('attendance_') ? 'alarm-outline'
+      : type.startsWith('leave_') ? 'calendar-outline' : ['comment_added'].includes(type) ? 'chatbubble-outline'
+      : type.startsWith('task_') || type === 'deadline_reminder' ? 'checkbox-outline' : null;
+    return name ? <Ionicons name={name} size={28} color={Colors.primary} /> : <Noti_IC width={28} height={28} />;
   };
 
   const sections = useMemo(() => {
@@ -168,7 +158,7 @@ const NotificationScreen = ({ navigation }) => {
     <View style={styles.empty}>
       <Noti_IC width={64} height={64} style={styles.emptyIcon} />
       <Text style={styles.emptyTitle}>No notifications</Text>
-      <Text style={styles.emptyMessage}>You're all caught up!</Text>
+      <Text style={styles.emptyMessage}>You&apos;re all caught up!</Text>
     </View>
   );
 
@@ -180,13 +170,22 @@ const NotificationScreen = ({ navigation }) => {
         onBackPress={() => navigation.goBack()}
       />
 
+{needsPermission && <View style={{ padding: 16, gap: 12 }}>
+        <Text>Enable notifications to keep up with tasks and leave requests.</Text>
+        <AppButton text="Enable notifications" style={{ width: '100%', height: 48 }} textStyle={{ fontSize: 15 }}
+          onPress={async () => { await registerPushToken(true); setNeedsPermission(!await permissionGranted()); }} />
+      </View>}
+
+      {!!error && <View style={{ padding: 16, gap: 12 }}><Text accessibilityRole="alert">{error}</Text>
+        <AppButton text="Retry" style={{ width: '100%', height: 48 }} textStyle={{ fontSize: 15 }} onPress={() => refresh().catch(() => {})} />
+      </View>}
       {isLoading && notifications.length === 0 ? (
         <View style={styles.loader}>
           <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={styles.loadingText}>Loading notifications...</Text>
         </View>
       ) : (
-        <SectionList
+      <SectionList
           sections={sections}
           renderItem={renderItem}
           renderSectionHeader={renderSectionHeader}

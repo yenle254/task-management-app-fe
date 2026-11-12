@@ -1,5 +1,5 @@
 import { useAuth } from '@/src/contexts/authContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { authorizedFetch, getValidAccessToken } from '../../services/tokenManager';
 import { useNavigation, useRoute } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
 import React, { useEffect, useState } from "react";
@@ -20,6 +20,8 @@ import HeaderWithBackButton from "../../components/headerWithBackButton";
 import SubTaskList from "../../components/task/subtaskList";
 import AddSubtaskInput from "../../components/task/addSubtaskInput";
 import SubtaskProgress from "../../components/task/subtaskProgress";
+import AdvancedTaskFields, { emptyAdvancedFields, advancedPayload } from "../../components/task/advancedTaskFields";
+import taskService from "../../services/taskService";
 import apiClient from "../../services/api";
 import { teamService } from "../../services/index";
 import { API_URL } from "../../config/api.config";
@@ -67,6 +69,7 @@ const EditTaskScreen = () => {
   const [isAddingSubtask, setIsAddingSubtask] = useState(false);
 
   // Form States
+  const [advancedFields, setAdvancedFields] = useState(emptyAdvancedFields);
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
   const [selectedMembers, setSelectedMembers] = useState([]);
@@ -109,6 +112,7 @@ const EditTaskScreen = () => {
 
   useEffect(() => {
     if (selectedTask) {
+      setAdvancedFields({ tags: selectedTask.tags || [], estimatedMinutes: String(selectedTask.estimatedMinutes ?? ''), storyPoints: String(selectedTask.storyPoints ?? '') });
       setTaskTitle(selectedTask.title || "");
       setTaskDescription(selectedTask.description || "");
       
@@ -233,7 +237,7 @@ const EditTaskScreen = () => {
       }
 
     } catch (error) {
-      if (!DocumentPicker.isCancel(error)) {
+      if (error) {
         Alert.alert(
           "Error",
           "Unable to select file(s). Please try again.",
@@ -266,7 +270,7 @@ const EditTaskScreen = () => {
     });
 
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await getValidAccessToken();
       
       if (!token) {
         throw new Error('Authentication token not found. Please login again.');
@@ -275,7 +279,7 @@ const EditTaskScreen = () => {
       console.log('Uploading attachments to task:', taskIdParam);
       console.log('Files count:', files.length);
       
-      const response = await fetch(
+      const response = await authorizedFetch(
         `${API_URL}/tasks/${taskIdParam}/attachments/bulk`,
         {
           method: 'POST',
@@ -371,6 +375,7 @@ const EditTaskScreen = () => {
       }
 
       const taskPayload = {
+        ...advancedPayload(advancedFields),
         title: taskTitle.trim(),
         description: taskDescription.trim(),
         assignedTo: selectedMembers.map(m => m._id),
@@ -378,10 +383,11 @@ const EditTaskScreen = () => {
         difficulty: "medium",
         startDate: parsedStartDate.toISOString(),
         dueDate: parsedDueDate.toISOString(),
-        removedAttachments: removedAttachmentIds,
+
       };
 
       await updateTask(taskId, taskPayload);
+      for (const attachmentId of removedAttachmentIds) await taskService.deleteAttachment(taskId, attachmentId);
 
       if (newAttachments.length > 0) {
         await uploadAttachments(newAttachments, taskId);
@@ -690,13 +696,13 @@ const EditTaskScreen = () => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent} showsVerticalScrollIndicator={false}>
+      <ScrollView keyboardShouldPersistTaps="handled" style={styles.scrollView} contentContainerStyle={styles.scrollViewContent} showsVerticalScrollIndicator={false}>
         <View style={styles.contentWrapper}>
           <View style={styles.content}>
             {/* Attachments */}
             <View style={styles.selectorContainer}>
               <Text style={styles.selectorLabel}>Attachments ({existingAttachments.length + newAttachments.length}/3)</Text>
-              <Text style={styles.selectorHint}>Format: .pdf, .jpeg, .png (Max 5MB each)</Text>
+              <Text style={styles.selectorHint}>Format: .pdf, .jpeg, .png (Max 10MB each)</Text>
               <View style={styles.attachmentRow}>
                 {[0, 1, 2].map((index) => {
                   const attachment = existingAttachments[index] || newAttachments[index - existingAttachments.length];
@@ -793,6 +799,7 @@ const EditTaskScreen = () => {
               Priority
             )}
 
+            <AdvancedTaskFields value={advancedFields} onChange={setAdvancedFields} />
             {/* Subtasks Section */}
             <View style={styles.selectorContainer}>
               <View style={styles.subtaskHeader}>

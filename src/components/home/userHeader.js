@@ -53,6 +53,15 @@ const UserHeader = ({ navigation }) => {
       </Pressable>
 
       <View style={styles.right}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open AI HR and Task Copilot"
+          style={styles.aiButton}
+          onPress={() => navigation.navigate("AICopilot")}
+        >
+          <Text style={styles.aiButtonText}>✨ AI</Text>
+        </Pressable>
+
         <AppIcon
           icon={<Message width={18} height={18} />}
           width={44}
@@ -125,6 +134,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     alignItems: "center",
+  },
+  aiButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 12,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  aiButtonText: {
+    color: Colors.white,
+    fontSize: 13,
+    fontWeight: "700",
   },
   notificationWrapper: {
     position: "relative",

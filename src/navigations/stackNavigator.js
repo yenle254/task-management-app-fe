@@ -1,10 +1,13 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
+import ClockinScreen from "../screens/clockinScreen";
 import ClockInAreaScreen from "../screens/clockInAreaScreen";
 import ChatScreen from "../screens/messages/chatScreen";
 import MessageScreen from "../screens/messages/messageScreen";
 import NewMessageScreen from "../screens/messages/newMessageScreen";
 import SubmitLeaveScreen from "../screens/submitLeaveScreen";
+import LeaveScreen from "../screens/leaveScreen";
+import PendingLeavesScreen from "../screens/leave/pendingLeavesScreen";
 import EditTaskScreen from "../screens/task/editTaskScreen";
 import TaskDetailScreen from "../screens/task/taskDetailScreen";
 import CreateTaskScreen from "../screens/task/createTaskScreen";
@@ -12,6 +15,13 @@ import ImageViewerScreen from "../screens/task/imageViewerScreen";
 import NotificationScreen from "../screens/notificationScreen";
 import BottomNavigator from "./bottomNavigator";
 import ProfileStackNavigator from "./profileStackNavigatior";
+
+import KanbanBoardScreen from "../screens/task/kanbanBoardScreen";
+import TaskCalendarScreen from "../screens/task/taskCalendarScreen";
+import TaskTimelineScreen from "../screens/task/taskTimelineScreen";
+
+import ApprovalsScreen from '../screens/task/approvalsScreen';
+import { AICopilotScreen } from '../../chat_bot';
 
 const Stack = createNativeStackNavigator();
 
@@ -28,13 +38,21 @@ const StackNavigator = () => {
       <Stack.Screen name="NewMessage" component={NewMessageScreen} />
       <Stack.Screen name="Chat" component={ChatScreen} />
       <Stack.Screen name="SubmitLeave" component={SubmitLeaveScreen} />
+      <Stack.Screen name="MyLeaves" component={LeaveScreen} />
+      <Stack.Screen name="LeaveInbox" component={PendingLeavesScreen} />
+      <Stack.Screen name="Attendance" component={ClockinScreen} />
       <Stack.Screen name="ClockInArea" component={ClockInAreaScreen} />
       <Stack.Screen name="Profile" component={ProfileStackNavigator} />
       <Stack.Screen name="Notification" component={NotificationScreen} />
+      <Stack.Screen name="KanbanBoard" component={KanbanBoardScreen} />
+      <Stack.Screen name="TaskCalendar" component={TaskCalendarScreen} />
+      <Stack.Screen name="TaskTimeline" component={TaskTimelineScreen} />
       <Stack.Screen name="EditTask" component={EditTaskScreen} />
+      <Stack.Screen name="Approvals" component={ApprovalsScreen} />
       <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />
       <Stack.Screen name="CreateTask" component={CreateTaskScreen} />
       <Stack.Screen name="ImageViewer" component={ImageViewerScreen} />
+      <Stack.Screen name="AICopilot" component={AICopilotScreen} />
 
     </Stack.Navigator>
   );
