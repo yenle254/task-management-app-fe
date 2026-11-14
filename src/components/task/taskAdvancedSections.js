@@ -197,7 +197,7 @@ export default function TaskAdvancedSections({ task, navigation }) {
     <Section title="Watchers">
       {!task.watchers?.length && <Text>No watchers</Text>}
       {(task.watchers || []).map(person => <View key={keyOf(person)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Avatar url={person.profile?.avatar} name={person.profile?.fullName || 'User'} width={32} height={32} />
+        <Avatar userId={person._id} url={person.profile?.avatar} name={person.profile?.fullName || 'User'} width={32} height={32} />
         <Text style={{ flex: 1 }}>{person.profile?.fullName || person.email || 'Watcher'}</Text>
         {canRemoveWatcher && <Action disabled={busy || locked} onPress={() => run(() => store.removeWatcher(task._id, keyOf(person)))}>Remove</Action>}
       </View>)}

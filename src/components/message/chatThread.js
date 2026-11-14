@@ -12,18 +12,7 @@ const chatThread = ({thread, onPress}) => {
         >
             <View style={styles.avatarWrapper}>
                 <View style={styles.avatarContainer}>
-                    {thread.profile?.avatar ? (
-                      <Image 
-                        source={{ uri: thread.profile.avatar }} 
-                        style={styles.avatar} 
-                      />
-                    ) : (
-                      <View style={styles.avatarPlaceholder}>
-                        <Text style={styles.avatarText}>
-                          {thread.profile?.fullName?.charAt(0)?.toUpperCase() || thread.email?.charAt(0)?.toUpperCase() || '?'}
-                        </Text>
-                      </View>
-                    )}
+                    <Avatar userId={thread.userId} url={thread.profile?.avatar} name={thread.profile?.fullName || thread.name} width={48} height={48} />
                 </View>
                 <OnlineBadge style={styles.badge} userId={thread.userId} />
             </View>

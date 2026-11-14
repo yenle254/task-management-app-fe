@@ -1,3 +1,4 @@
+import Avatar from "../../components/avatar";
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, FlatList, ActivityIndicator, Text, TouchableOpacity, TextInput, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -99,18 +100,7 @@ const NewMessageScreen = ({ navigation }) => {
       onPress={() => handleUserPress(item)}
     >
       <View style={styles.avatarContainer}>
-        {item.profile?.avatar ? (
-          <Image 
-            source={{ uri: item.profile.avatar }} 
-            style={styles.avatar} 
-          />
-        ) : (
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarText}>
-              {item.profile?.fullName?.charAt(0)?.toUpperCase() || item.email?.charAt(0)?.toUpperCase() || '?'}
-            </Text>
-          </View>
-        )}
+        <Avatar userId={item._id} url={item.profile?.avatar} name={item.profile?.fullName || item.email} width={48} height={48} />
       </View>
       <View style={styles.userInfo}>
         <Text style={styles.userName}>

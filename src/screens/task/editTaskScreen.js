@@ -24,7 +24,7 @@ import AdvancedTaskFields, { emptyAdvancedFields, advancedPayload } from "../../
 import taskService from "../../services/taskService";
 import apiClient from "../../services/api";
 import { teamService } from "../../services/index";
-import { API_URL } from "../../config/api.config";
+import { API_URL } from "../../config/runtime-api.config";
 import Colors from "../../styles/color";
 import Folder from "../../../assets/icons/folder.svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";

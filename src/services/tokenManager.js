@@ -1,5 +1,5 @@
 import axios from 'axios';
-import API_CONFIG from '../config/api.config';
+import API_CONFIG from '../config/runtime-api.config';
 import { getCredentials, saveCredentials, clearAuth, saveUser, withAuthLock } from '../utils/authStorage';
 const transport = axios.create({ baseURL: API_CONFIG.BASE_URL, timeout: API_CONFIG.TIMEOUT });
 const listeners = new Set();

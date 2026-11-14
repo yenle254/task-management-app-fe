@@ -203,7 +203,7 @@ const ClockInAreaScreen = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>MY PROFILE</Text>
           <View style={styles.profileCard}>
-            <Avatar url={avatarUrl} name={displayName} width={60} height={60} />
+            <Avatar userId={user?._id} url={avatarUrl} name={displayName} width={60} height={60} />
             <View style={styles.profileInfo}>
               <View style={styles.profileRow}>
                 <Text style={styles.profileName}>{displayName}</Text>

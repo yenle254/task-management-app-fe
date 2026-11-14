@@ -1,5 +1,5 @@
 import { io } from 'socket.io-client';
-import { API_URL } from '../config/api.config';
+import { SOCKET_URL } from '../config/runtime-api.config';
 import { getValidAccessToken, refreshAccessToken, expireSession, subscribeTokenChanged, isPasswordChanging, waitForPasswordChange, getAuthGeneration } from './tokenManager';
 
 class SocketService {
@@ -23,7 +23,7 @@ class SocketService {
     this.socket?.disconnect();
     this.unsubscribeToken?.();
     let authFailure = false;
-    const connectedSocket = io(API_URL.replace('/api', ''), {
+    const connectedSocket = io(SOCKET_URL, {
       autoConnect: false,
       auth: callback => {
         getValidAccessToken().then(value => { authFailure = false; connectedSocket.accessToken = value; callback({ token: value }); })

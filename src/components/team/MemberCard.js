@@ -19,7 +19,7 @@ const MemberCard = ({
   return (
     <View style={styles.container}>
       <View style={styles.left}>
-        <Avatar url={avatarUrl} name={avatarKey} width={48} height={48} />
+        <Avatar userId={member._id} url={avatarUrl} name={avatarKey} width={48} height={48} />
         <View style={styles.info}>
           <Text style={styles.name}>
             {member.profile?.fullName || member.email}

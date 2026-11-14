@@ -33,7 +33,6 @@ const CommentList = ({ comments = [] }) => {
   return (
     <View style={styles.container}>
       {comments.map((comment, index) => {
-        const userId = typeof comment.userId === 'string' ? comment.userId : comment.userId;
         const userProfile = comment.userId?.profile || {};
         const userName = userProfile?.fullName || comment.userId?.email || "Unknown";
         const userPosition = userProfile?.position || "Employee";
@@ -44,15 +43,7 @@ const CommentList = ({ comments = [] }) => {
           <View style={styles.commentHeader}>
             <View style={styles.commentUser}>
               <View style={styles.avatarContainer}>
-                {userAvatar ? (
-                  <Avatar url={userAvatar} name={userId} width={36} height={36} />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarText}>
-                      {userName?.charAt(0)?.toUpperCase() || "?"}
-                    </Text>
-                  </View>
-                )}
+                <Avatar userId={comment.userId} url={userAvatar} name={userName} width={36} height={36} />
               </View>
               <View style={styles.userInfo}>
                 <Text style={styles.userName}>

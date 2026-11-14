@@ -252,18 +252,12 @@ export const AuthProvider = ({ children }) => {
    */
   const updateProfile = async (data) => {
     try {
-      setIsLoading(true);
       const response = await authService.updateProfile(data);
+      if (!response.success || !response.data) return { success: false, error: response.error || "Failed to update profile" };
       setUser(response.data);
       return { success: true, user: response.data };
     } catch (error) {
-      console.error("Update profile error:", error);
-      return {
-        success: false,
-        error: error.error || "Failed to update profile",
-      };
-    } finally {
-      setIsLoading(false);
+      return { success: false, error: error.error || error.message || "Failed to update profile", errors: error.errors };
     }
   };
 

@@ -663,7 +663,7 @@ export default function TaskTimelineScreen({ navigation, route }) {
                                 idx > 0 && { marginLeft: -10 },
                               ]}
                             >
-                              <Avatar
+                              <Avatar userId={person?._id}
                                 url={person?.profile?.avatar}
                                 name={AVATAR_KEYS[idx % AVATAR_KEYS.length]}
                                 width={30}

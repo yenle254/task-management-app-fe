@@ -21,7 +21,7 @@ function frontendServices(token, baseURL) {
   };
   function load(filename) {
     const absolute = path.resolve(projectRoot, filename);
-    if (absolute === path.join(projectRoot, 'src/config/api.config.js')) return { default: { BASE_URL: baseURL, TIMEOUT: 10000 }, __esModule: true };
+    if (absolute === path.join(projectRoot, 'src/config/runtime-api.config.js')) return { default: { BASE_URL: baseURL, TIMEOUT: 10000 }, __esModule: true };
     if (cache.has(absolute)) return cache.get(absolute).exports;
     const loaded = { exports: {} };
     cache.set(absolute, loaded);

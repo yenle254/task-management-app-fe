@@ -103,7 +103,7 @@ const MyProfile = () => {
           },
         ]}
       >
-        <Avatar
+        <Avatar userId={user?._id}
           url={avatarUrl}
           name={avatarKey}
           width={AVATAR_SIZE}

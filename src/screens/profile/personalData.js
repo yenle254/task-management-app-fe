@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -20,6 +19,9 @@ import AppButton from "../../components/appButton";
 import HeaderWithBackButton from "../../components/headerWithBackButton";
 import { useAuth } from "../../contexts/authContext";
 import authService from "../../services/authService";
+import { uploadAvatar } from "../../services/avatarService";
+import { profileError } from "../../utils/avatarData";
+import Avatar from "../../components/avatar";
 import Colors from "../../styles/color";
 import ChevronDown from "../../../assets/icons/chevron_down.svg";
 import BuildingIcon from "../../../assets/icons/company.svg";
@@ -32,11 +34,10 @@ import {
   default as UserIcon,
 } from "../../../assets/icons/user.svg";
 
-import DefaultProfileImage from "../../../assets/images/icon.png";
 
 const PersonalData = () => {
   const navigation = useNavigation();
-  const { user, refreshUser } = useAuth();
+  const { user, updateProfile } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -181,28 +182,14 @@ const PersonalData = () => {
       if (!result.canceled && result.assets[0]) {
         setUploadingAvatar(true);
 
-        const imageUri = result.assets[0].uri;
-        const filename = imageUri.split("/").pop();
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : "image/jpeg";
-
-        const formDataUpload = new FormData();
-        formDataUpload.append("file", {
-          uri: imageUri,
-          name: filename,
-          type,
-        });
-
-        // const uploadResponse = await uploadService.uploadImage(formDataUpload);
-        // setFormData(prev => ({ ...prev, avatar: uploadResponse.url }));
-
-        setFormData((prev) => ({ ...prev, avatar: imageUri }));
+        const avatarUrl = await uploadAvatar(result.assets[0]);
+        setFormData((prev) => ({ ...prev, avatar: avatarUrl }));
         setUploadingAvatar(false);
       }
     } catch (error) {
       console.error("Error picking image:", error);
       setUploadingAvatar(false);
-      Alert.alert("Error", "Failed to select image. Please try again.");
+      Alert.alert("Error", profileError(error));
     }
   };
 
@@ -246,10 +233,10 @@ const PersonalData = () => {
         updateData.avatar = formData.avatar.trim();
       }
 
-      const response = await authService.updateProfile(updateData);
+      const response = await updateProfile(updateData);
+      if (!response.success) throw response;
 
       if (response.success) {
-        await refreshUser();
 
         setOriginalData({ ...formData });
 
@@ -261,7 +248,7 @@ const PersonalData = () => {
       console.error("Error updating profile:", error);
       Alert.alert(
         "Error",
-        error.error || "Failed to update profile. Please try again."
+        profileError(error)
       );
     } finally {
       setSaving(false);
@@ -418,16 +405,9 @@ const PersonalData = () => {
                   <ActivityIndicator size="small" color={Colors.primary} />
                 </View>
               ) : (
-                <Image
-                  source={
-                    formData.avatar
-                      ? { uri: formData.avatar }
-                      : DefaultProfileImage
-                  }
-                  style={styles.profileImage}
-                />
+                <Avatar url={formData.avatar} name={formData.fullName} width={100} height={100} />
               )}
-              <Pressable style={styles.uploadButton} onPress={handleAvatarPick}>
+              <Pressable style={styles.uploadButton} onPress={handleAvatarPick} disabled={uploadingAvatar || saving}>
                 <UploadIcon width={20} height={20} fill={Colors.primary} />
               </Pressable>
               <Text style={styles.photoText}>Upload Photo</Text>
@@ -497,7 +477,7 @@ const PersonalData = () => {
           onPress={handleSubmit}
           style={[styles.submitButton, saving && styles.submitButtonDisabled]}
           textStyle={styles.submitButtonText}
-          disabled={saving}
+          disabled={saving || uploadingAvatar}
         />
       </View>
 

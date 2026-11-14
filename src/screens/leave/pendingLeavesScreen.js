@@ -193,7 +193,7 @@ const PendingLeavesScreen = ({ navigation }) => {
       >
         <View style={styles.employeeSection}>
           <Avatar
-            url={employeeAvatar}
+            userId={item.userId} url={employeeAvatar}
             name={employeeName}
             width={48}
             height={48}
@@ -459,7 +459,7 @@ const PendingLeavesScreen = ({ navigation }) => {
 
                   <View style={styles.modalEmployeeSection}>
                     <Avatar
-                      url={selectedLeave.userId?.profile?.avatar || null}
+                      userId={selectedLeave.userId} url={selectedLeave.userId?.profile?.avatar || null}
                       name={selectedLeave.userId?.profile?.fullName || selectedLeave.userId?.email || "Unknown"}
                       width={56}
                       height={56}

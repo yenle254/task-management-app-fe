@@ -38,7 +38,7 @@ const UserHeader = ({ navigation }) => {
         onPress={() => navigation.navigate("Profile")}
       >
         <View style={styles.avatarWrapper}>
-          <Avatar url={avatarUrl} name={avatarKey} width={46} height={46} />
+          <Avatar userId={user._id} url={avatarUrl} name={avatarKey} width={46} height={46} />
           {/* {user.isOnline && <View style={styles.onlineDot} />} */}
         </View>
 

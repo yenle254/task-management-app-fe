@@ -48,21 +48,7 @@ const CardTask = ({
             key={assignee._id || index} 
             style={[styles.avatarContainer, { marginLeft: index > 0 ? -8 : 0 }]}
           >
-            {assignee.profile?.avatar ? (
-              <Avatar 
-                url={assignee.profile.avatar} 
-                name={assignee.profile?.fullName || assignee.email} 
-                width={24} 
-                height={24} 
-              />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarText}>
-                  {assignee.profile?.fullName?.charAt(0).toUpperCase() || 
-                   assignee.email?.charAt(0).toUpperCase() || '?'}
-                </Text>
-              </View>
-            )}
+            <Avatar userId={assignee._id} url={assignee.profile?.avatar} name={assignee.profile?.fullName || assignee.email} width={24} height={24} />
           </View>
         ))}
         {remainingCount > 0 && (

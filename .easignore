@@ -69,3 +69,13 @@ credentials.json
 # Required client configuration for Android builds
 !src/config/api.config.js
 !google-services.json
+
+# Release archive excludes local reports, fixtures and artifacts
+report/
+tests/
+*.log
+*.apk
+*.aab
+*.fig
+# Legacy local API module is no longer imported by the application
+src/config/api.config.js

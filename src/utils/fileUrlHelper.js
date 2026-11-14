@@ -1,4 +1,4 @@
-import API_CONFIG from '../config/api.config';
+import API_CONFIG from '../config/runtime-api.config';
 
 /**
  * Convert relative file URL to absolute URL
@@ -16,7 +16,7 @@ export const getAbsoluteFileUrl = (fileUrl) => {
   // If relative URL like /uploads/..., construct absolute URL
   if (fileUrl.startsWith('/')) {
     // Extract base URL without /api path
-    const baseUrl = API_CONFIG.BASE_URL.replace('/api', '');
+    const baseUrl = new URL(API_CONFIG.BASE_URL).origin;
     return `${baseUrl}${fileUrl}`;
   }
   

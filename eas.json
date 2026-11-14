@@ -6,6 +6,19 @@
       "android": {
         "buildType": "apk"
       }
+    },
+    "production-apk": {
+      "developmentClient": false,
+      "distribution": "internal",
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_API_URL": "https://api-production-360b0645.up.railway.app",
+        "EXPO_PUBLIC_AUTO_REFRESH_ENABLED": "true"
+      },
+      "android": {
+        "buildType": "apk"
+      }
     }
   }
 }

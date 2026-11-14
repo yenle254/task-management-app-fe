@@ -47,6 +47,7 @@ src\config\api.config.js
 
 # Claude Code memory and reports
 MEMORY.md
+report.txt
 *.memory.md
 *.report.md
 BAO_CAO_*.md
@@ -61,3 +62,10 @@ BAO_CAO_TIEN_DO_FRONTEND.md
 
 # Local review output
 *.log
+# Local environment and release artifacts
+.env
+.env.*
+!.env.example
+*.apk
+*.aab
+!report/eas-apk-build.md

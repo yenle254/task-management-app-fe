@@ -1,5 +1,5 @@
 import axios from 'axios';
-import API_CONFIG from '../config/api.config';
+import API_CONFIG from '../config/runtime-api.config';
 import { getValidAccessToken, refreshAccessToken, expireSession, getAuthGeneration } from './tokenManager';
 export { subscribeSessionExpired, expireSession } from './tokenManager';
 const apiClient = axios.create({ baseURL: API_CONFIG.BASE_URL, timeout: API_CONFIG.TIMEOUT, headers: { 'Content-Type': 'application/json' } });

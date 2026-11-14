@@ -26,15 +26,7 @@ const AddComment = ({ taskId }) => {
   return (
     <View style={styles.container}>
       <View style={styles.avatarContainer}>
-        {user.profile?.avatar ? (
-          <Avatar url={user.profile.avatar} name={user?.profile?.fullName} width={36} height={36} />
-        ) : (
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarText}>
-              {user?.profile?.fullName?.charAt(0)?.toUpperCase() || "?"}
-            </Text>
-          </View>
-        )}
+        <Avatar userId={user?._id} url={user?.profile?.avatar} name={user?.profile?.fullName} width={36} height={36} />
       </View>
 
       <View style={styles.inputWrapper}>

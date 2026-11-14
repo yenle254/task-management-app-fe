@@ -32,7 +32,7 @@ const UserCard = memo(
         disabled={isDisabled}
       >
         <View style={styles.left}>
-          <Avatar url={avatarUrl} name={avatarKey} width={48} height={48} />
+          <Avatar userId={user._id} url={avatarUrl} name={avatarKey} width={48} height={48} />
           <View style={styles.info}>
             <Text style={styles.name}>
               {user.profile?.fullName || user.email}

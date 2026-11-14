@@ -2,7 +2,7 @@
   "expo": {
     "name": "project",
     "slug": "project",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "project",
@@ -35,7 +35,8 @@
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
       ],
       "package": "com.anonymous.project",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 2
     },
     "web": {
       "output": "static",

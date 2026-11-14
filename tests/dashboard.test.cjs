@@ -42,7 +42,7 @@ test('401 invalidates the matching session but preserves a newer account session
     'react-native': { Platform: { OS: 'web' } },
     'expo-secure-store': {},
     '@react-native-async-storage/async-storage': { getItem: async key => values.get(key), setItem: async (key, value) => values.set(key, value), removeItem: async key => values.delete(key), multiRemove: async keys => keys.forEach(key => values.delete(key)) },
-    [path.resolve(__dirname, '../src/config/api.config.js')]: { BASE_URL: 'http://localhost/api', TIMEOUT: 1000 },
+    [path.resolve(__dirname, '../src/config/runtime-api.config.js')]: { BASE_URL: 'http://localhost/api', TIMEOUT: 1000 },
   });
   const api = authLoad('src/services/api.js');
   const authStorage = authLoad('src/utils/authStorage.js');

@@ -32,7 +32,7 @@ const CardMeeting = ({ name, timeStart, timeEnd, timeLabel, description, assigne
         <View style={styles.bottom}>
           <View style={{ flexDirection: "row"}}>
             {assignees.slice(0, 3).map((assignee, index) => (
-              <Avatar
+              <Avatar userId={assignee}
                 key={index}
                 name={typeof assignee === 'string' ? assignee : assignee.profile?.fullName || assignee.email}
                 url={typeof assignee === 'object' ? assignee.profile?.avatar : undefined}

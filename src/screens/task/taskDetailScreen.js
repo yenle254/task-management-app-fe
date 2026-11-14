@@ -342,15 +342,7 @@ const TaskDetailScreen = () => {
           <Text style={styles.sectionTitle}>Assignee</Text>
           {selectedTask.assignedTo?.map((person) => (
             <View key={person._id} style={styles.assigneeItem}>
-              {person.profile?.avatar ? (
-                <Avatar url={person.profile.avatar} name={person._id} width={44} height={44} />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarText}>
-                    {person.profile?.fullName?.charAt(0).toUpperCase() || "U"}
-                  </Text>
-                </View>
-              )}
+              <Avatar userId={person._id} url={person.profile?.avatar} name={person.profile?.fullName || person.email} width={44} height={44} />
               <View>
                 <Text style={styles.assigneeName}>{person.profile?.fullName || person.email}</Text>
                 <Text style={styles.assigneeRole}>

@@ -8,7 +8,7 @@ import Colors from "../../styles/color";
 import Micro from "../../../assets/icons/micro.svg";
 import * as ImagePicker from "expo-image-picker";
 import { authorizedFetch, getValidAccessToken } from '../../services/tokenManager';
-import { API_URL } from "../../config/api.config";
+import { API_URL } from "../../config/runtime-api.config";
 
 const MessageType = ({ onSendMessage, onTyping, disabled, receiverId, conversationId }) => {
   const [message, setMessage] = React.useState("");
@@ -89,7 +89,7 @@ const MessageType = ({ onSendMessage, onTyping, disabled, receiverId, conversati
 
     try {
       const token = await getValidAccessToken();
-      const baseUrl = API_URL.replace('/api', '');
+      const baseUrl = new URL(API_URL).origin;
       const uploadUrl = `${baseUrl}/api/upload`;
       
       console.log('Upload URL:', uploadUrl);
