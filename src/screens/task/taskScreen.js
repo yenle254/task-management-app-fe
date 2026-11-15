@@ -69,7 +69,7 @@ const TaskScreen = () => {
   const data = scope === 'my' ? myTasks : scope === 'team' ? teamTasks : tasks;
   const activeStats = scope === 'my' ? taskStats : teamTaskStats;
   if (authLoading || !user) return <View style={styles.fullScreenLoading}><ActivityIndicator color={Colors.primary} /></View>;
-  const openView = name => navigation.navigate(name, name === 'KanbanBoard' ? { teamId: user.teamId?._id || user.teamId } : { scope: 'self' });
+  const openView = name => navigation.navigate(name, name === 'KanbanBoard' ? { teamId: user.teamId?._id || user.teamId } : { scope: user.role === 'hr_manager' ? 'team' : 'self' });
   return <SafeAreaView edges={['left', 'right']} style={{ flex: 1, backgroundColor: Colors.secondary }}>
     <HeaderPromo text="Challenges ahead!" subtext="Plan your work, one task at a time." color={Colors.primary}
       style={[styles.promo, { height: Math.max(insets.top + 156, Math.min(width * 0.56, 224)) }]}

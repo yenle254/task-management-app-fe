@@ -114,3 +114,53 @@ test('badge unregisters its socket listener and clears polling on unmount', t =>
   assert.equal(listeners.size, 0);
   assert.deepEqual(clear.mock.calls[0].arguments, [123]);
 });
+
+test('camera capture stores photo URI in state so it can be previewed and sent', async () => {
+  const React = require('react');
+  const states = ['', null, 56, false];
+  const setters = [];
+  const MessageType = load('src/components/message/messageType.js', {
+    react: {
+      ...React,
+      useState: initial => {
+        const index = setters.length;
+        if (states[index] === undefined) states[index] = initial;
+        const set = value => { states[index] = value; };
+        setters.push(set);
+        return [states[index], set];
+      },
+      useRef: initial => ({ current: initial }),
+    },
+    'react-native': {
+      View: 'View', TextInput: 'TextInput', TouchableOpacity: 'TouchableOpacity',
+      Image: 'Image', ActivityIndicator: 'ActivityIndicator', StyleSheet: { create: s => s },
+    },
+    '../../components/appIcon': 'AppIcon',
+    '../../../assets/icons/send.svg': 'Send',
+    '../../../assets/icons/attach.svg': 'Attach',
+    '../../../assets/icons/cam.svg': 'Camera',
+    '../../../assets/icons/micro.svg': 'Micro',
+    '../../styles/color': { primary: '#7057FC', danger: '#ff0000', gray: '#999', white: '#fff', frame: '#eee' },
+    'expo-image-picker': {
+      requestCameraPermissionsAsync: async () => ({ status: 'granted' }),
+      launchCameraAsync: async () => ({ canceled: false, assets: [{ uri: 'file:///cache/camera_photo.JPG' }] }),
+    },
+    '../../services/tokenManager': {
+      getValidAccessToken: async () => 'token-123',
+      authorizedFetch: async () => ({ ok: true, status: 200, json: async () => ({ url: '/uploads/photo.jpg' }) }),
+    },
+    '../../config/runtime-api.config': { API_URL: 'https://api.example.test/api' },
+  });
+
+  const tree = MessageType({ receiverId: 'u2', onSendMessage() {} });
+  function findTouchables(node, acc = []) {
+    if (!node || typeof node !== 'object') return acc;
+    if (node.type === 'TouchableOpacity') acc.push(node);
+    for (const child of React.Children.toArray(node.props?.children)) findTouchables(child, acc);
+    return acc;
+  }
+  const touchables = findTouchables(tree);
+  // The second action button inside inputWrap is the Camera button
+  await touchables[touchables.length - 1].props.onPress();
+  assert.equal(states[1], 'file:///cache/camera_photo.JPG');
+});

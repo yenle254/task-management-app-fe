@@ -128,3 +128,33 @@ test('Avatar follows profile context changes and releases the previous authentic
   effects.forEach(effect => effect?.cleanup?.());
   assert.deepEqual(released, ['file:///cache/new.png', 'file:///cache/updated.png']);
 });
+
+for (const [file,prop] of [['MemberCard.js','member'], ['UserCard.js','user']]) test(file + ' uses the same user identity fallback as task avatars without changing avatar size', () => {
+  const React = require('react');
+  const Component = loader({
+    react: { ...React, memo: component => component },
+    'react-native': { View: 'View', Text: 'Text', TouchableOpacity: 'TouchableOpacity', StyleSheet: { create: value => value } },
+    [path.resolve(__dirname, '../src/components/avatar.js')]: 'Avatar',
+  })('src/components/team/' + file).default;
+  function find(node) {
+    if (!node || typeof node !== 'object') return null;
+    if (node.type === 'Avatar') return node;
+    for (const child of React.Children.toArray(node.props?.children)) { const result = find(child); if (result) return result; }
+    return null;
+  }
+  for (const person of [
+    { _id: 'alice', profile: { fullName: 'Alice', avatar: null } },
+    { _id: 'bob', email: 'bob@example.test', profile: {} },
+    { _id: 'photo', profile: { fullName: 'Photo', avatar: 'https://api.example/uploads/photo.png' } },
+  ]) {
+    const avatar = find(Component({ [prop]: { ...person, role: 'employee' } }));
+    assert.ok(avatar);
+    assert.equal(avatar.props.userId, person._id);
+    assert.equal(avatar.props.name, person.profile.fullName || person.email);
+    assert.equal(avatar.props.url, person.profile.avatar || null);
+    assert.equal(avatar.props.width, 48); assert.equal(avatar.props.height, 48);
+    assert.deepEqual(resolveAvatar(avatar.props, { _id: 'another-viewer' }), {
+      url: person.profile.avatar || null, name: person.profile.fullName || person.email,
+    });
+  }
+});

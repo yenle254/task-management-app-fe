@@ -65,6 +65,7 @@ function renderNative(available) {
     'react-native': { View: 'View', Text: 'Text', TouchableOpacity: 'Button', StyleSheet: { create: x => x }, TurboModuleRegistry: { get: () => available ? {} : null }, Linking: { openURL: async () => {} } },
     '../styles/color': { primary: '#7057FC', secondary: '#f0f1f7' },
     '../utils/attendanceMapHtml': htmlModule,
+    '../config/runtime-api.config': { BASE_URL: 'https://api.example.test/api' },
   };
   Object.defineProperty(mocks, 'react-native-webview', { get() { required = true; return { WebView: 'WebView' }; } });
   const Component = load('src/components/attendanceMap.js', mocks).default;
@@ -82,6 +83,12 @@ test('WebView keeps file access off, caching enabled and blocks arbitrary naviga
   assert.equal(element.type, 'WebView');
   assert.equal(element.props.allowFileAccess, false);
   assert.equal(element.props.cacheEnabled, true);
+  assert.equal(element.props.source.baseUrl, 'https://api.example.test/');
+  assert.match(element.props.applicationNameForUserAgent, /TaskflowAttendance/);
+  assert.ok(element.props.source.html.includes('https://api.example.test/api/maps/tiles/{z}/{x}/{y}.png'));
+  assert.ok(!element.props.source.html.includes('https://tile.openstreetmap.org/'));
+  assert.equal(element.props.onShouldStartLoadWithRequest({ url: 'https://api.example.test/' }), true);
+  assert.equal(element.props.onShouldStartLoadWithRequest({ url: 'https://api.example.test/api/auth/me' }), false);
   assert.equal(element.props.onShouldStartLoadWithRequest({ url: 'about:blank' }), true);
   assert.equal(element.props.onShouldStartLoadWithRequest({ url: 'https://attacker.example/' }), false);
 });
@@ -113,4 +120,13 @@ for (const inArea of [false, true]) test(`clock-in handler ${inArea ? 'sends the
   assert.equal(button.props.disabled, !inArea);
   await button.props.onPress();
   assert.deepEqual(calls, inArea ? [{ lat: point.latitude, lng: point.longitude }] : []);
+});
+
+ test('tile proxy origin must be HTTPS and cannot inject HTML or credentials', () => {
+  for (const origin of ['http://example.test', 'https://user:password@example.test', 'https://example.test/?key=secret', 'javascript:alert(1)']) {
+    assert.throws(() => createAttendanceMapHtml(point, office, '#7057FC', origin));
+  }
+  const html = createAttendanceMapHtml(point, office, '#7057FC', 'https://api.example.test/');
+  assert.ok(html.includes('img-src data: https://api.example.test;'));
+  assert.ok(html.includes('OpenStreetMap contributors'));
 });

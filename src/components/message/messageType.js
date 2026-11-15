@@ -11,14 +11,14 @@ import { authorizedFetch, getValidAccessToken } from '../../services/tokenManage
 import { API_URL } from "../../config/runtime-api.config";
 
 const MessageType = ({ onSendMessage, onTyping, disabled, receiverId, conversationId }) => {
+  const MIN_HEIGH = 56;
+  const MAX_HEIGH = 120;
+
   const [message, setMessage] = React.useState("");
   const [image, setImage] = React.useState(null);
   const [tiHeight, setTiHeight] = React.useState(MIN_HEIGH);
   const typingTimeoutRef = React.useRef(null);
   const [uploading, setUploading] = React.useState(false);
-
-  const MIN_HEIGH = 56
-  const MAX_HEIGH = 120
 
   const handleSend = async () => {
     const txt = message.trim();
@@ -77,9 +77,11 @@ const MessageType = ({ onSendMessage, onTyping, disabled, receiverId, conversati
 
   const uploadImage = async (imageUri) => {
     const formData = new FormData();
-    const filename = imageUri.split('/').pop();
-    const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1]}` : 'image/jpeg';
+    const rawName = imageUri.split('/').pop() || 'photo.jpg';
+    const match = /\.(\w+)$/.exec(rawName);
+    const ext = match ? match[1].toLowerCase() : 'jpg';
+    const filename = match ? rawName : `${rawName}.jpg`;
+    const type = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
 
     formData.append('file', {
       uri: imageUri,
@@ -173,8 +175,10 @@ const MessageType = ({ onSendMessage, onTyping, disabled, receiverId, conversati
         quality: 1,
     })
 
-    if (!result.canceled) {
-        console.log(result.assets[0].uri);
+    if (!result.canceled && result.assets?.[0]?.uri) {
+        const imageUri = result.assets[0].uri;
+        setImage(imageUri);
+        console.log('Photo taken:', imageUri);
     }
   }
 

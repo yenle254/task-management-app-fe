@@ -57,7 +57,7 @@ const ClockInAreaScreen = ({ navigation }) => {
           throw new Error('Invalid active office location');
         }
         if (mounted) {
-          setOfficeArea({ latitude, longitude, radius });
+          setOfficeArea({ latitude, longitude, radius, workingHours: office.workingHours });
         }
       })
       .catch(() => {
@@ -114,14 +114,14 @@ const ClockInAreaScreen = ({ navigation }) => {
     }
 
     try {
-      await clockIn({
+      const response = await clockIn({
         lat: userLocation.latitude,
         lng: userLocation.longitude,
       });
       
       Alert.alert(
         "Success",
-        "You have successfully clocked in!",
+        response?.data?.status === "late" ? "Clock-in recorded. You are marked late based on the office start time." : "You have successfully clocked in!",
         [
           {
             text: "OK",
@@ -216,20 +216,20 @@ const ClockInAreaScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* <View style={styles.section}>
+        {officeArea && <View style={styles.section}>
           <Text style={styles.sectionTitle}>SCHEDULE</Text>
           <View style={styles.scheduleCard}>
             <View style={styles.scheduleItem}>
               <Text style={styles.scheduleLabel}>CLOCK IN</Text>
-              <Text style={styles.scheduleTime}>09:00</Text>
+              <Text style={styles.scheduleTime}>{officeArea.workingHours?.start || "09:00"}</Text>
             </View>
             <View style={styles.scheduleDivider} />
             <View style={styles.scheduleItem}>
               <Text style={styles.scheduleLabel}>CLOCK OUT</Text>
-              <Text style={styles.scheduleTime}>17:00</Text>
+              <Text style={styles.scheduleTime}>{officeArea.workingHours?.end || "18:00"}</Text>
             </View>
           </View>
-        </View>     */}
+        </View>}
 
         <TouchableOpacity
           style={[

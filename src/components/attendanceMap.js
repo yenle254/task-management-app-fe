@@ -1,12 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, TurboModuleRegistry, View } from 'react-native';
 import Colors from '../styles/color';
+import API_CONFIG from '../config/runtime-api.config';
+const MAP_BASE_URL = new URL(API_CONFIG.BASE_URL).origin + '/';
+const MAP_TILE_ORIGIN = MAP_BASE_URL.startsWith('https:') ? MAP_BASE_URL : undefined;
 import { createAttendanceMapHtml } from '../utils/attendanceMapHtml';
 
 export default function AttendanceMap({ location, office }) {
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const source = useMemo(() => ({ html: createAttendanceMapHtml(location, office, Colors.primary) }), [location, office]);
+  const source = useMemo(() => ({ html: createAttendanceMapHtml(location, office, Colors.primary, MAP_TILE_ORIGIN), baseUrl: MAP_BASE_URL }), [location, office]);
   // Old development APKs must not crash when they do not yet contain WebView.
   if (!TurboModuleRegistry.get('RNCWebViewModule')) {
     return <View style={styles.message}><Text>Update the app to display the map. GPS validation remains available.</Text></View>;
@@ -25,7 +28,7 @@ export default function AttendanceMap({ location, office }) {
     style={styles.map}
     source={source}
     originWhitelist={['*']}
-    applicationNameForUserAgent="EMSAttendance/1.0"
+    applicationNameForUserAgent="TaskflowAttendance/1.0 (+https://github.com/yenle254/task-management-app-fe)"
     cacheEnabled
     javaScriptEnabled
     domStorageEnabled={false}
@@ -33,11 +36,16 @@ export default function AttendanceMap({ location, office }) {
     mixedContentMode="never"
     thirdPartyCookiesEnabled={false}
     setSupportMultipleWindows={false}
+    onHttpError={({ nativeEvent }) => {
+      if (nativeEvent.url?.startsWith('https://tile.openstreetmap.org/')) {
+        console.warn('[AttendanceMap] tile HTTP status:', nativeEvent.statusCode);
+      }
+    }}
     onError={() => setFailed(true)}
     onRenderProcessGone={() => setFailed(true)}
     onContentProcessDidTerminate={() => setFailed(true)}
     onShouldStartLoadWithRequest={({ url }) => {
-      if (url === 'about:blank') return true;
+      if (url === 'about:blank' || url === MAP_BASE_URL) return true;
       if (/^https:\/\/(www\.openstreetmap\.org|leafletjs\.com)(\/|$)/.test(url)) {
         Linking.openURL(url).catch(() => {});
       }

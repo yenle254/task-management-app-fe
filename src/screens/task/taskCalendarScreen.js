@@ -19,7 +19,6 @@ import { getTaskStatus } from '../../utils/taskStatusMap';
 import Colors from '../../styles/color';
 
 const STATUS_FILTERS = [null, 'todo', 'in_progress', 'in_review', 'done'];
-const AVATAR_KEYS = ['avt1', 'avt2', 'avt3'];
 
 const getDotColor = status => getTaskStatus(status).color;
 
@@ -189,7 +188,7 @@ function PlusIconSvg() {
 }
 
 export default function TaskCalendarScreen({ navigation, route }) {
-  const { canManageTasks } = useAuth();
+  const { user, canManageTasks } = useAuth();
   const [month, setMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [statusFilterIndex, setStatusFilterIndex] = useState(0);
@@ -209,7 +208,7 @@ export default function TaskCalendarScreen({ navigation, route }) {
       await getCalendar({
         from,
         to,
-        scope: route.params?.scope || 'self',
+        scope: route.params?.scope || (user?.role === 'hr_manager' ? 'team' : 'self'),
         ...(route.params?.teamId ? { teamId: route.params.teamId } : {}),
       });
     } catch (err) {
@@ -217,7 +216,7 @@ export default function TaskCalendarScreen({ navigation, route }) {
     } finally {
       setLoading(false);
     }
-  }, [from, to, getCalendar, route.params]);
+  }, [from, to, getCalendar, route.params, user?.role]);
 
   useFocusEffect(
     useCallback(() => {
@@ -569,7 +568,7 @@ export default function TaskCalendarScreen({ navigation, route }) {
                             >
                               <Avatar userId={person?._id}
                                 url={person?.profile?.avatar}
-                                name={AVATAR_KEYS[idx % AVATAR_KEYS.length]}
+                                name={person?.profile?.fullName || person?.email}
                                 width={30}
                                 height={30}
                               />

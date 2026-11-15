@@ -2,7 +2,7 @@
   "expo": {
     "name": "project",
     "slug": "project",
-    "version": "1.0.1",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "project",
@@ -36,7 +36,7 @@
       ],
       "package": "com.anonymous.project",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 2
+      "versionCode": 7
     },
     "web": {
       "output": "static",

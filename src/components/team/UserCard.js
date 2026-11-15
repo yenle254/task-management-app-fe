@@ -17,7 +17,6 @@ const UserCard = memo(
     const badgeText =
       disabledReason || (isAlreadyMember ? "Already a member" : null);
     const avatarUrl = user.profile?.avatar || null;
-    const avatarKey = "avt1";
     const isEditableRole =
       user.role === "employee" || user.role === "team_lead";
 
@@ -32,7 +31,7 @@ const UserCard = memo(
         disabled={isDisabled}
       >
         <View style={styles.left}>
-          <Avatar userId={user._id} url={avatarUrl} name={avatarKey} width={48} height={48} />
+          <Avatar userId={user._id} url={avatarUrl} name={user.profile?.fullName || user.email} width={48} height={48} />
           <View style={styles.info}>
             <Text style={styles.name}>
               {user.profile?.fullName || user.email}
