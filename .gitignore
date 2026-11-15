@@ -68,4 +68,4 @@ BAO_CAO_TIEN_DO_FRONTEND.md
 !.env.example
 *.apk
 *.aab
-!report/eas-apk-build.md
+/report/
