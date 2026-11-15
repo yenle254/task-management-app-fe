@@ -56,7 +56,6 @@ BAO_CAO_TIEN_DO_FRONTEND.md
 *.md
 *.txt
 *.fig
-!CLAUDE.md
 !README.md
 !CHANGELOG.md
 
