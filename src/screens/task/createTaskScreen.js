@@ -125,8 +125,8 @@ const CreateTaskScreen = ({ navigation, route }) => {
           return;
         }
         response = await teamService.getTeamMembers(selectedTeam._id);
-      } else if (user?.role === "team_lead" && user?.teamId) {
-        response = await teamService.getTeamMembers(user.teamId);
+      } else if (user?.role === "team_lead" && (user?.teamId?._id || user?.teamId)) {
+        response = await teamService.getTeamMembers(user?.teamId?._id || user?.teamId);
       }
       if (response?.data) {
         setTeamMembers(response.data);
@@ -321,7 +321,9 @@ const CreateTaskScreen = ({ navigation, route }) => {
   };
 
   const validateTaskData = () => {
-    if (!taskTitle.trim()) return { valid: false, message: 'Task title is required' };
+    const trimmedTitle = taskTitle.trim();
+    if (!trimmedTitle) return { valid: false, message: 'Task title is required' };
+    if (trimmedTitle.length < 3) return { valid: false, message: 'Title must be between 3 and 255 characters' };
     if (selectedMembers.length === 0) return { valid: false, message: 'At least one assignee is required' };
     if (user?.role === 'hr_manager' && !selectedTeam?._id) return { valid: false, message: 'Team is required' };
     if (!startDate) return { valid: false, message: 'Start date is required' };
@@ -493,7 +495,7 @@ const CreateTaskScreen = ({ navigation, route }) => {
     setIsUploading(true);
   
     try {
-      const resolvedTeamId = user?.role === 'hr_manager' ? selectedTeam?._id : user?.teamId;
+      const resolvedTeamId = user?.role === 'hr_manager' ? selectedTeam?._id : (user?.teamId?._id || user?.teamId);
       const taskPayload = {
         ...advancedPayload(advancedFields),
         title: taskTitle.trim(),
@@ -537,7 +539,10 @@ const CreateTaskScreen = ({ navigation, route }) => {
     } catch (error) {
       console.error("Create task error:", error);
       setIsUploading(false);
-      Alert.alert("Error", error?.error || error?.message || "Failed to create task");
+      const detail = Array.isArray(error?.errors) && error.errors.length > 0
+        ? error.errors.map(e => e.message).filter(Boolean).join('\n')
+        : null;
+      Alert.alert("Error", detail || error?.error || error?.message || "Failed to create task");
     }
   };
 
